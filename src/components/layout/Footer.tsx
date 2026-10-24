@@ -13,7 +13,7 @@ export function Footer() {
             </span>
           </div>
           <p className="text-xs text-slate-500">
-            Thiết kế kiến trúc dựa trên Blueprint OpenQuiz.ai • Spaced Repetition (FSRS/SM-2) • Gemini 2.5 • Azure Speech PronScore
+            Nền tảng học ngoại ngữ cá nhân • Spaced Repetition (FSRS/SM-2) • Gemini 2.5 • Azure Speech PronScore
           </p>
           <div className="flex items-center gap-4 text-xs text-slate-500">
             <Link href="/decks" className="hover:text-brand-600 transition-colors">Bộ từ</Link>

@@ -1,12 +1,12 @@
-# LingoPulse AI — Personal Language Platform (OpenQuiz Architecture)
+# LingoPulse AI — Personal Language Platform
 
-> Ứng dụng học từ vựng và luyện phản xạ giao tiếp ngoại ngữ tích hợp AI, được thiết kế và khởi tạo hoàn chỉnh dựa trên bản phân tích kỹ thuật và thiết kế hệ thống trong file [`openquiz_ai_technical_analysis_and_blueprint.md`](./openquiz_ai_technical_analysis_and_blueprint.md).
+> Ứng dụng học từ vựng và luyện phản xạ giao tiếp ngoại ngữ tích hợp AI, kết hợp thuật toán Spaced Repetition (FSRS/SM-2), chấm điểm phát âm 4 chiều PronScore™ và hội thoại nhập vai.
 
 ---
 
 ## 1. Tổng Quan Kiến Trúc Kỹ Thuật
 
-Dự án tái hiện vòng lặp học tập khép kín 4 giai đoạn của nền tảng OpenQuiz.ai:
+Dự án xây dựng vòng lặp học tập khép kín 4 giai đoạn:
 1. **Khởi tạo học liệu (Create):** Tạo bộ thẻ thủ công hoặc dùng Google Gemini Multimodal Vision (Photo-to-Flashcard) trích xuất từ vựng từ ảnh chụp sách giáo khoa/tài liệu và mở rộng theo chủ đề (Topic-to-Flashcard).
 2. **Ghi nhớ ngắt quãng (Memorize):** Tích hợp thuật toán **Modified SuperMemo SM-2 & FSRS** tự động tính toán hệ số dễ nhớ ($EF$), số lần lặp ($n$) và khoảng thời gian ôn tập tiếp theo ($I$). 3 chế độ học tập cốt lõi:
    - **Flashcard:** Lật thẻ 3D, phát âm bản xứ, đánh giá 4 mức nhớ (`Again`, `Hard`, `Good`, `Easy`).
@@ -25,7 +25,6 @@ Dự án tái hiện vòng lặp học tập khép kín 4 giai đoạn của n�
 
 ```tree
 LanguageLearningApp/
-├── openquiz_ai_technical_analysis_and_blueprint.md  # Tài liệu phân tích gốc
 ├── package.json                                    # Scripts & dependencies
 ├── tsconfig.json                                   # Cấu hình TypeScript strict mode
 ├── tailwind.config.ts                              # Cấu hình Theme màu & Design System
@@ -138,5 +137,5 @@ Nếu bạn muốn đồng bộ đa thiết bị qua đám mây:
 
 - **Strict TypeScript:** Toàn bộ dữ liệu, props, API responses đều được định kiểu chặt chẽ trong `src/types/index.ts`.
 - **Zero Lock-in Local-First:** Bộ nhớ cục bộ hoạt động độc lập ngay cả khi mất mạng; lật thẻ và ôn tập đạt tốc độ tức thì.
-- **Tuân thủ Bản quyền & Giấy phép (Clean-room Implementation):** Toàn bộ mã nguồn được xây dựng mới 100% dựa trên các công nghệ chuẩn công nghiệp (Next.js, Tailwind, Web Speech API, Azure Speech REST), không sao chép bundle hay tài nguyên đóng mã của OpenQuiz.
+- **Mã nguồn Mở & Tiêu chuẩn Hiện đại:** Toàn bộ mã nguồn được xây dựng mới 100% dựa trên các công nghệ chuẩn công nghiệp (Next.js, Tailwind, Web Speech API, Azure Speech REST) với kiến trúc độc lập.
 - **Clean Architecture & Phân tách trách nhiệm:** Các module AI, Audio, SRS, UI components được cô lập thành các file chức năng riêng biệt, dễ dàng unit test và mở rộng sang mobile app (Expo / React Native).

@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin", "vietnamese"] });
 export const metadata: Metadata = {
   title: "LingoPulse AI — Nền Tảng Học Ngoại Ngữ Phản Xạ & Lặp Lại Ngắt Quãng",
   description:
-    "Học từ vựng chủ động, Spaced Repetition (FSRS/SM-2), AI Chấm điểm phát âm PronScore và Luyện hội thoại phản xạ tương tự OpenQuiz.ai.",
+    "Học từ vựng chủ động, Spaced Repetition (FSRS/SM-2), AI Chấm điểm phát âm PronScore và Luyện hội thoại phản xạ tự nhiên.",
 };
 
 export default function RootLayout({

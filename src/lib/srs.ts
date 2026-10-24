@@ -1,6 +1,5 @@
 // ==============================================================================
 // Spaced Repetition Algorithm Engine (Modified SuperMemo SM-2 & FSRS logic)
-// Referenced from Section 3.4 of openquiz_ai_technical_analysis_and_blueprint.md
 // ==============================================================================
 
 import { Card, CardStatus, SRSRating } from "@/types";

@@ -1,5 +1,5 @@
 -- ==============================================================================
--- OpenQuiz AI Architecture Blueprint - Database Schema
+-- LingoPulse AI - Database Schema
 -- Compatible with PostgreSQL 15+ and Supabase
 -- ==============================================================================
 

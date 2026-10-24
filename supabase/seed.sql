@@ -1,5 +1,5 @@
 -- ==============================================================================
--- OpenQuiz AI Architecture Blueprint - Seed Data
+-- LingoPulse AI - Seed Data
 -- 3 Production-grade Study Sets with Full IPA, Examples & Speaking Prompts
 -- ==============================================================================
 

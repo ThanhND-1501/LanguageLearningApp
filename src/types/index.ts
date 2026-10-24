@@ -1,5 +1,5 @@
 // ==============================================================================
-// Domain Type Definitions for LingoPulse (OpenQuiz Architecture)
+// Domain Type Definitions for LingoPulse AI
 // ==============================================================================
 
 export type CardStatus = 'new' | 'learning' | 'mastered';

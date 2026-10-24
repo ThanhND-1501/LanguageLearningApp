@@ -1,7 +1,7 @@
 {
   "name": "language-learning-app",
   "version": "1.0.0",
-  "description": "Nền tảng học ngoại ngữ phản xạ AI & Lặp lại ngắt quãng (SRS) theo kiến trúc OpenQuiz.ai Blueprint",
+  "description": "Nền tảng học ngoại ngữ phản xạ AI & Lặp lại ngắt quãng (SRS) với LingoPulse AI",
   "private": true,
   "scripts": {
     "dev": "next dev",

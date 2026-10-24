@@ -1,6 +1,5 @@
 // ==============================================================================
 // Google Gemini AI Pipeline (Multimodal Vision OCR, Topic Expansion, Grammar & Roleplay)
-// Referenced from Section 3.3 & 5.4 of openquiz_ai_technical_analysis_and_blueprint.md
 // ==============================================================================
 
 import { GeneratedCardItem, GrammarEvaluationResult } from "@/types";
