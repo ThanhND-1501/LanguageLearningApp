@@ -5,6 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, Deck, SRSRating } from "@/types";
 import { getLocalDecks, getLocalCards, updateCardWithSRSRating } from "@/lib/storage";
+import { recordStudyActivity } from "@/lib/auth";
 import { FlashcardViewer } from "@/components/study/FlashcardViewer";
 import { WriteMode } from "@/components/study/WriteMode";
 import { DictationMode } from "@/components/study/DictationMode";
@@ -38,7 +39,15 @@ export default function StudySessionPage() {
   }, [deckId]);
 
   const handleRateCard = (cardId: string, rating: SRSRating) => {
-    updateCardWithSRSRating(cardId, rating);
+    const updated = updateCardWithSRSRating(cardId, rating);
+    if (updated) {
+      recordStudyActivity({
+        type: "srs_review",
+        title: `Ôn tập SRS: ${updated.term}`,
+        description: `Đánh giá '${rating}' — chu kỳ tiếp theo sau ${updated.intervalDays} ngày`,
+        metadata: { term: updated.term, rating },
+      });
+    }
   };
 
   const handleRestart = () => {

@@ -3,7 +3,7 @@
 // Supports Cloud Synchronization, Auth (Email & OAuth), and graceful Local-First fallback
 // ==============================================================================
 
-import { createClient, SupabaseClient, User } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";

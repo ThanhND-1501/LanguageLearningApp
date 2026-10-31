@@ -15,6 +15,9 @@ export interface Deck {
   totalCards: number;
   createdAt: string;
   updatedAt?: string;
+  isGlobal?: boolean;         // True nếu là bộ từ vựng chung/chuẩn của hệ thống
+  ownerId?: string;           // ID người dùng sở hữu (hoặc 'system' cho bộ chung)
+  enrolledUsers?: string[];   // Danh sách user IDs đã đăng ký học bộ này
 }
 
 export interface Card {
@@ -133,6 +136,18 @@ export interface GenerateCardsRequest {
   imageMimeType?: string;
 }
 
+export interface DocumentExtractResult {
+  success: boolean;
+  fileName: string;
+  fileType: string;
+  suggestedDeckTitle: string;
+  suggestedDescription: string;
+  suggestedTags: string[];
+  extractedTextPreview?: string;
+  cards: GeneratedCardItem[];
+  error?: string;
+}
+
 export interface GrammarEvaluationResult {
   hasUsedTargetWords: boolean;
   missingWords: string[];
@@ -141,3 +156,66 @@ export interface GrammarEvaluationResult {
   correctedSentence: string;
   naturalRewrite: string;
 }
+
+// ------------------------------------------------------------------------------
+// User Account, Personalization & Activity History Types
+// ------------------------------------------------------------------------------
+export type TargetProficiencyLevel =
+  | 'A2'
+  | 'B1'
+  | 'B2'
+  | 'C1'
+  | 'C2'
+  | 'IELTS 6.5'
+  | 'IELTS 7.5+'
+  | 'TOEIC 800+';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  targetLevel: TargetProficiencyLevel;
+  dailyGoalCards: number;
+  streakDays: number;
+  lastActiveDate: string;
+  createdAt: string;
+  isCloudSynced: boolean;
+  enrolledDeckIds?: string[]; // Danh sách ID các bộ từ vựng mà user đã đăng ký học
+}
+
+export type ActivityType =
+  | 'srs_review'
+  | 'card_created'
+  | 'speech_practice'
+  | 'cambridge_lookup'
+  | 'conversation'
+  | 'deck_created';
+
+export interface StudyActivity {
+  id: string;
+  userId: string;
+  type: ActivityType;
+  title: string;
+  description: string;
+  metadata?: {
+    term?: string;
+    deckId?: string;
+    score?: number;
+    cardsCount?: number;
+    rating?: string;
+  };
+  timestamp: string;
+}
+
+export interface UserPersonalStats {
+  totalWords: number;
+  masteredWords: number;
+  learningWords: number;
+  newWords: number;
+  totalSpeakingAttempts: number;
+  avgPronScore: number;
+  totalStudyDays: number;
+  retentionRate: number;
+}
+
