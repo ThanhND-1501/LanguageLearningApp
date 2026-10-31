@@ -192,7 +192,7 @@ export default function SpeakingStudioPage() {
                   <span>Đề bài luyện nói phản xạ (Speaking with words)</span>
                 </div>
                 <p className="text-base font-bold text-slate-900 dark:text-white">
-                  "{selectedCard.speakingPrompt || `Tell a short story where you had to be ${selectedCard.term}.`}"
+                  &ldquo;{selectedCard.speakingPrompt || `Tell a short story where you had to be ${selectedCard.term}.`}&rdquo;
                 </p>
                 <p className="text-xs text-slate-500 mt-2">
                   Quy tắc: Hãy nói to một câu trả lời hoàn chỉnh có chứa từ{" "}
@@ -276,7 +276,7 @@ export default function SpeakingStudioPage() {
                             Cách người bản xứ diễn đạt tự nhiên hơn:
                           </span>
                           <p className="text-base font-semibold text-slate-900 dark:text-white mt-1">
-                            "{grammarFeedback.naturalRewrite}"
+                            &ldquo;{grammarFeedback.naturalRewrite}&rdquo;
                           </p>
                         </div>
                       )}

@@ -27,12 +27,19 @@ Dự án xây dựng vòng lặp học tập khép kín 4 giai đoạn:
 LanguageLearningApp/
 ├── package.json                                    # Scripts & dependencies
 ├── tsconfig.json                                   # Cấu hình TypeScript strict mode
+├── .eslintrc.json                                  # Cấu hình Next.js ESLint
 ├── tailwind.config.ts                              # Cấu hình Theme màu & Design System
 ├── postcss.config.mjs                              # PostCSS plugin pipeline
 ├── next.config.mjs                                 # Cấu hình Next.js App Router
 ├── .env.example                                    # Mẫu biến môi trường bảo mật
 ├── .gitignore                                      # Bộ lọc file rác / git ignore
 ├── README.md                                       # Tài liệu hướng dẫn kỹ thuật
+│
+├── tests/                                          # Unit Test Suites (node:test + spec reporter)
+│   ├── run.js                                      # Test runner tự động phát hiện test files
+│   ├── srs.test.ts                                 # Unit tests cho Spaced Repetition Engine (SM-2)
+│   ├── utils.test.ts                               # Unit tests cho hàm tiện ích (date, badge color, cn)
+│   └── azure-speech.test.ts                        # Unit tests cho PronScore assessment simulator
 │
 ├── supabase/                                       # Cơ sở dữ liệu PostgreSQL
 │   ├── schema.sql                                  # 4 bảng cốt lõi (decks, cards, speaking_attempts, sessions) + Views + Triggers
@@ -113,9 +120,17 @@ cp .env.example .env.local
 2. **Azure AI Speech Key & Region:** Đăng ký gói Free Tier (F0) tại [Azure Portal](https://portal.azure.com) (miễn phí 5 giờ âm thanh/tháng) để kích hoạt chấm điểm phát âm `PronScore`.
 *(Lưu ý: Nếu chưa cấu hình API Key, ứng dụng vẫn tự động kích hoạt Heuristic Simulation Fallback và Web Speech API để lập trình viên có thể test toàn bộ tính năng và giao diện mà không bị lỗi).*
 
-### Bước 4: Khởi chạy môi trường phát triển (Dev Server)
+### Bước 4: Khởi chạy môi trường phát triển & Chạy Tests
 ```bash
+# Khởi chạy dev server
 npm run dev
+
+# Chạy toàn bộ Unit Tests (24 test cases cho SRS, PronScore, Utils)
+npm test
+
+# Kiểm tra lint & kiểu dữ liệu TypeScript
+npm run lint
+npm run type-check
 ```
 Mở trình duyệt tại: [http://localhost:3000](http://localhost:3000)
 
