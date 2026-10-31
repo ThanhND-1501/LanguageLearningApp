@@ -3,7 +3,11 @@ const path = require("path");
 const createJiti = require("jiti");
 
 const rootDir = path.resolve(__dirname, "..");
-const jiti = createJiti(rootDir);
+const jiti = createJiti(rootDir, {
+  alias: {
+    "@": path.resolve(__dirname, "../src"),
+  },
+});
 
 const testDir = __dirname;
 const testFiles = fs
