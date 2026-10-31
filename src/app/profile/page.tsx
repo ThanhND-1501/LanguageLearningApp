@@ -86,8 +86,8 @@ export default function ProfilePage() {
   };
 
   const handleExportVocabulary = () => {
-    const cards = getLocalCards();
-    const decks = getLocalDecks();
+    const cards = getLocalCards(user?.id);
+    const decks = getLocalDecks(user?.id);
     const exportData = {
       user: user?.name,
       email: user?.email,

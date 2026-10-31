@@ -48,6 +48,7 @@ export const DEMO_USER: UserProfile = {
   lastActiveDate: new Date().toISOString().split("T")[0],
   createdAt: new Date(Date.now() - 14 * 86400000).toISOString(),
   isCloudSynced: false,
+  enrolledDeckIds: ["deck-ielts-mastery", "deck-silicon-valley"],
 };
 
 let memoryAccounts: StoredAccount[] = [];
@@ -187,6 +188,7 @@ export async function registerLocalUser(
     lastActiveDate: new Date().toISOString().split("T")[0],
     createdAt: new Date().toISOString(),
     isCloudSynced: false,
+    enrolledDeckIds: [], // Trạng thái mới tinh: chưa đăng ký bộ từ nào
   };
 
   accounts.push({
@@ -343,7 +345,7 @@ export function getUserActivities(userId?: string): StudyActivity[] {
  * Computes personalized learning metrics and vocabulary stats for the user
  */
 export function getUserPersonalStats(userId?: string): UserPersonalStats {
-  const cards: Card[] = getLocalCards();
+  const cards: Card[] = getLocalCards(userId);
   const activities = getUserActivities(userId);
 
   const totalWords = cards.length;
@@ -363,8 +365,8 @@ export function getUserPersonalStats(userId?: string): UserPersonalStats {
     }
   }
 
-  const avgPronScore = scoredCount > 0 ? Math.round(totalScores / scoredCount) : 78; // baseline
-  const retentionRate = totalWords > 0 ? Math.round(((masteredWords + learningWords * 0.5) / totalWords) * 100) : 0;
+  const avgPronScore = scoredCount > 0 ? Math.round(totalScores / scoredCount) : 0;
+  const retentionRate = totalWords > 0 ? Math.round(((masteredWords + learningWords * 0.5) / totalWords) * 100) : 100;
 
   return {
     totalWords,

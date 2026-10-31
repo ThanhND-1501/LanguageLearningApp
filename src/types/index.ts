@@ -15,6 +15,9 @@ export interface Deck {
   totalCards: number;
   createdAt: string;
   updatedAt?: string;
+  isGlobal?: boolean;         // True nếu là bộ từ vựng chung/chuẩn của hệ thống
+  ownerId?: string;           // ID người dùng sở hữu (hoặc 'system' cho bộ chung)
+  enrolledUsers?: string[];   // Danh sách user IDs đã đăng ký học bộ này
 }
 
 export interface Card {
@@ -133,6 +136,18 @@ export interface GenerateCardsRequest {
   imageMimeType?: string;
 }
 
+export interface DocumentExtractResult {
+  success: boolean;
+  fileName: string;
+  fileType: string;
+  suggestedDeckTitle: string;
+  suggestedDescription: string;
+  suggestedTags: string[];
+  extractedTextPreview?: string;
+  cards: GeneratedCardItem[];
+  error?: string;
+}
+
 export interface GrammarEvaluationResult {
   hasUsedTargetWords: boolean;
   missingWords: string[];
@@ -166,6 +181,7 @@ export interface UserProfile {
   lastActiveDate: string;
   createdAt: string;
   isCloudSynced: boolean;
+  enrolledDeckIds?: string[]; // Danh sách ID các bộ từ vựng mà user đã đăng ký học
 }
 
 export type ActivityType =

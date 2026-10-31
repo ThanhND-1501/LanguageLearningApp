@@ -174,12 +174,16 @@ describe("Authentication & Account Engine (auth.ts)", () => {
         metadata: { score: 90 },
       }, user.id);
 
-      const stats = getUserPersonalStats(user.id);
-      assert.ok(stats.totalWords > 0);
-      assert.ok(stats.masteredWords >= 0);
-      assert.ok(stats.retentionRate > 0);
-      assert.strictEqual(stats.totalSpeakingAttempts, 1);
-      assert.strictEqual(stats.avgPronScore, 90);
+      // Fresh state: 0 words initially
+      const initialStats = getUserPersonalStats(user.id);
+      assert.strictEqual(initialStats.totalWords, 0);
+      assert.strictEqual(initialStats.masteredWords, 0);
+      assert.strictEqual(initialStats.totalSpeakingAttempts, 1);
+      assert.strictEqual(initialStats.avgPronScore, 90);
+
+      // Demo user has pre-enrolled words
+      const demoStats = getUserPersonalStats(DEMO_USER.id);
+      assert.ok(demoStats.totalWords > 0);
     });
   });
 });

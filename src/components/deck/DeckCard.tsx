@@ -1,13 +1,15 @@
 import Link from "next/link";
-import { BookOpen, Clock, Play, Sparkles } from "lucide-react";
+import { BookOpen, Clock, Play, Sparkles, Check, Globe, Plus } from "lucide-react";
 import { Deck, Card } from "@/types";
 
 interface DeckCardProps {
   deck: Deck;
   cards: Card[];
+  isEnrolled?: boolean;
+  onEnroll?: () => void;
 }
 
-export function DeckCard({ deck, cards }: DeckCardProps) {
+export function DeckCard({ deck, cards, isEnrolled = true, onEnroll }: DeckCardProps) {
   const newCards = cards.filter((c) => c.status === "new").length;
   const learningCards = cards.filter((c) => c.status === "learning").length;
   const masteredCards = cards.filter((c) => c.status === "mastered").length;
@@ -21,10 +23,17 @@ export function DeckCard({ deck, cards }: DeckCardProps) {
   const masteryPercent = cards.length > 0 ? Math.round((masteredCards / cards.length) * 100) : 0;
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-all dark:border-slate-800 dark:bg-slate-900">
+    <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-all dark:border-slate-800 dark:bg-slate-900 relative">
       <div>
-        {/* Tags */}
+        {/* Global badge or tags */}
         <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          {deck.isGlobal && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800">
+              <Globe className="h-3 w-3" />
+              Bộ từ chung (Có sẵn)
+            </span>
+          )}
+
           {deck.tags.map((tag) => (
             <span
               key={tag}
@@ -33,7 +42,8 @@ export function DeckCard({ deck, cards }: DeckCardProps) {
               {tag}
             </span>
           ))}
-          {dueCards > 0 && (
+
+          {isEnrolled && dueCards > 0 && (
             <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
               <Clock className="h-3 w-3" />
               {dueCards} cần ôn
@@ -55,7 +65,7 @@ export function DeckCard({ deck, cards }: DeckCardProps) {
         <div className="mt-5">
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 font-medium">
             <span>Tiến độ ghi nhớ</span>
-            <span>{masteryPercent}%</span>
+            <span>{isEnrolled ? `${masteryPercent}%` : `${cards.length} thẻ chuẩn`}</span>
           </div>
           <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden flex dark:bg-slate-800">
             <div
@@ -101,13 +111,24 @@ export function DeckCard({ deck, cards }: DeckCardProps) {
           Xem chi tiết ({cards.length} thẻ)
         </Link>
 
-        <Link
-          href={`/study/${deck.id}`}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 transition-colors shadow-sm"
-        >
-          <Play className="h-3.5 w-3.5 fill-white" />
-          Học ngay
-        </Link>
+        {isEnrolled ? (
+          <Link
+            href={`/study/${deck.id}`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 transition-colors shadow-sm"
+          >
+            <Play className="h-3.5 w-3.5 fill-white" />
+            Học ngay
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={onEnroll}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 transition-colors shadow-sm"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Đăng ký học bộ này
+          </button>
+        )}
       </div>
     </div>
   );
