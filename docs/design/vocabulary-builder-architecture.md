@@ -178,6 +178,7 @@ export interface CambridgeWordEntry {
   audioUsUrl?: string;             // File mp3 phát âm chuẩn Anh - Mỹ từ Cambridge CDN
   partOfSpeech?: string;           // Từ loại chính
   definitions: CambridgeDefinition[];
+  source?: "cambridge" | "free-dictionary-wiktionary";
 }
 ```
 
@@ -193,7 +194,32 @@ export interface CambridgeWordEntry {
 
 ---
 
-## 6. Chiến Lược Ổn Định & Chống Chặn (Resilience Strategy)
-1. **Desktop User-Agent Spoofing:** Luôn gửi kèm header của trình duyệt máy tính hiện đại để tránh bị hệ thống WAF/CDN của Cambridge phản hồi HTTP 403.
-2. **Fallback Đa tầng:** Nếu không có dữ liệu tại từ điển Anh - Việt, tự động tra cứu từ điển Anh - Anh chuẩn.
-3. **Edge Caching:** Phản hồi với header `Cache-Control: public, s-maxage=86400, stale-while-revalidate=43200` để các từ đã tra cứu được lưu đệm trên CDN/Browser, giảm tối đa số lần cào lặp lại.
+## 6. Chiến Lược Ổn Định, Chống Chặn & Xử Lý Lỗi 404 (Resilience & Auto-Failover Strategy)
+
+### 6.1. Nguyên nhân lỗi 404 ban đầu
+Khi triển khai gọi trực tiếp từ backend server Next.js (hoặc môi trường hosting/datacenter), Cambridge Dictionary kích hoạt cơ chế **Cloudflare Bot Management / Turnstile (HTTP 403 Forbidden)** với trang HTML *"Just a moment... Please complete security challenge"*.
+Do request nhận mã 403 hoặc trang challenge không chứa DOM từ vựng hợp lệ, hàm scraper trả về `null`, dẫn đến API route chuyển đổi thành phản hồi HTTP 404 (`Không tìm thấy từ trên từ điển Cambridge`).
+
+### 6.2. Cơ chế Failover Đa tầng Tự Động (Multi-Tier Auto-Failover)
+Để đảm bảo tính liên tục 100% cho người học dù Cambridge có chặn IP datacenter hay không, hệ thống áp dụng chiến lược chuyển mạch 3 tầng:
+1. **Tier 1 (Ưu tiên) - Cambridge Scraper:**
+   - Thực hiện cào trực tiếp từ điển Cambridge Anh - Việt (`/dictionary/english-vietnamese/{word}`).
+   - Nếu từ không có mục Anh - Việt, tự động chuyển tiếp cào từ điển Cambridge Anh - Anh (`/dictionary/english/{word}`).
+   - Kiểm tra tiêu đề trang: Nếu chứa `"Just a moment"` (Cloudflare Challenge) hoặc `"not found"`, lập tức chuyển sang Tier 2.
+2. **Tier 2 (Failover tức thì) - Open Dictionary & Vietnamese Wiktionary:**
+   - **Free Dictionary API (`api.dictionaryapi.dev`):** Lấy dữ liệu chuẩn hoá về IPA, file âm thanh audio giọng bản xứ (MP3 chất lượng cao), từ loại (POS), định nghĩa tiếng Anh và câu ví dụ.
+   - **Vietnamese Wiktionary API (`vi.wiktionary.org`):** Tự động bóc tách nghĩa tiếng Việt tương ứng theo từng từ loại.
+   - Đóng gói dữ liệu về cấu trúc chuẩn `CambridgeWordEntry` với `source: "free-dictionary-wiktionary"`.
+3. **Tier 3 - Edge Caching:**
+   - Header `Cache-Control: public, s-maxage=86400, stale-while-revalidate=43200` lưu đệm kết quả 24 giờ trên CDN và Client, triệt tiêu các lượt request trùng lặp.
+
+---
+
+## 7. Kiểm Thử Tự Động (Automated Testing Suite)
+Bộ kiểm thử tự động tại [tests/cambridge.test.ts](file:///data/thanhnd17/project/LanguageLearningApp/tests/cambridge.test.ts) bao gồm:
+- **Parser Unit Tests:** Kiểm tra độ chính xác bóc tách IPA, audio URL, part of speech, định nghĩa, nghĩa tiếng Việt, câu ví dụ từ HTML thực tế.
+- **Bot Detection & 404 Tests:** Kiểm tra việc phát hiện trang 404 và trang Cloudflare Turnstile Challenge (`<title>Just a moment...</title>`).
+- **Failover Simulation Tests:** Giả lập tình huống Cambridge chặn 403, kiểm tra hệ thống tự động failover sang Tier 2 và trả về kết quả đầy đủ.
+- **API Route Integration Tests:** Kiểm tra mã trạng thái HTTP 400 (thiếu tham số), 200 (thành công), và 404 (từ không tồn tại trên toàn bộ các nguồn).
+
+
