@@ -43,6 +43,7 @@ export default function DeckDetailPage() {
   const [newDef, setNewDef] = useState("");
   const [newExample, setNewExample] = useState("");
   const [newAudioUrl, setNewAudioUrl] = useState("");
+  const [availableExamples, setAvailableExamples] = useState<string[]>([]);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
@@ -51,6 +52,7 @@ export default function DeckDetailPage() {
     try {
       setIsLookingUp(true);
       setLookupError(null);
+      setAvailableExamples([]);
       const res = await fetch(`/api/dictionary/lookup?word=${encodeURIComponent(newTerm.trim())}`);
       const data = await res.json();
 
@@ -73,9 +75,20 @@ export default function DeckDetailPage() {
       const firstDef = wordEntry.definitions?.[0];
       if (firstDef) {
         setNewDef(firstDef.vietnameseTranslation || firstDef.englishDef);
-        if (firstDef.examples && firstDef.examples.length > 0) {
-          setNewExample(firstDef.examples[0]);
-        }
+      }
+
+      // Automatically populate example sentence from definition or multi-tier providers
+      const allEx: string[] =
+        wordEntry.examples && wordEntry.examples.length > 0
+          ? wordEntry.examples
+          : (wordEntry.definitions?.flatMap((d: any) => d.examples || []) || []);
+
+      const primaryEx = wordEntry.example || firstDef?.examples?.[0] || allEx[0];
+      if (primaryEx) {
+        setNewExample(primaryEx);
+      }
+      if (allEx.length > 0) {
+        setAvailableExamples(allEx);
       }
     } catch {
       setLookupError("Lỗi kết nối tới dịch vụ tra từ điển Cambridge.");
@@ -125,6 +138,7 @@ export default function DeckDetailPage() {
     setNewDef("");
     setNewExample("");
     setNewAudioUrl("");
+    setAvailableExamples([]);
     setLookupError(null);
     setShowAddModal(false);
   };
@@ -435,12 +449,36 @@ export default function DeckDetailPage() {
                   placeholder="We need to adopt a pragmatic approach to meet the deadline."
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
                 />
+                {availableExamples.length > 1 && (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[11px] font-semibold text-slate-500">Gợi ý ví dụ khác (bấm để chọn):</p>
+                    <div className="flex flex-col gap-1 max-h-28 overflow-y-auto pr-1">
+                      {availableExamples.slice(0, 4).map((ex, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setNewExample(ex)}
+                          className={`text-left text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
+                            newExample === ex
+                              ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-950/50 dark:border-brand-700 dark:text-brand-300 font-medium"
+                              : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
+                          }`}
+                        >
+                          &ldquo;{ex}&rdquo;
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setAvailableExamples([]);
+                    setShowAddModal(false);
+                  }}
                   className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-400"
                 >
                   Hủy

@@ -2,6 +2,8 @@ import { describe, it, assert, beforeEach, afterEach } from "./test-helper";
 import {
   parseCambridgeHtml,
   extractVietnameseFromWiktionary,
+  extractExamplesFromWiktionary,
+  generateContextualSentence,
   fetchFallbackDictionaryWord,
   fetchCambridgeWord,
 } from "../src/lib/cambridge";
@@ -74,15 +76,37 @@ const CLOUDFLARE_CHALLENGE_HTML = `
 `;
 
 const SAMPLE_WIKTIONARY_EXTRACT = `
-=== Từ nguyên ===
-Từ tiếng Latinh resiliens.
+== Tiếng Anh ==
+
+=== Cách phát âm ===
+IPA: /rɪ'zɪliənt/
 
 === Tính từ ===
-(thuộc) kiên cường, có khả năng phục hồi nhanh chóng.
-Vật liệu có tính đàn hồi cao.
+resilient  /rɪ'zɪliənt/
+
+kiên cường, có khả năng phục hồi nhanh chóng.
+to be resilient to changes — kiên cường trước những đổi thay
+resilient materials in engineering — vật liệu đàn hồi trong kỹ thuật
 
 === Danh từ ===
 Sự phục hồi.
+`;
+
+const SAMPLE_WIKTIONARY_ABANDON = `
+== Tiếng Anh ==
+
+=== Ngoại động từ ===
+abandon  /ə.ˈbæn.dən/
+
+Bộm (nhiếp ảnh)
+từ bỏ; bỏ rơi, ruồng bỏ.
+to abandon a hope — từ bỏ hy vọng
+to abandon one's family — ruồng bỏ gia đình
+
+== Tiếng Pháp ==
+
+=== Danh từ ===
+Abandon de privilèges — sự từ bỏ đặc quyền
 `;
 
 describe("Cambridge Dictionary Scraper & Parser (cambridge.ts)", () => {
@@ -128,6 +152,8 @@ describe("Cambridge Dictionary Scraper & Parser (cambridge.ts)", () => {
     assert.strictEqual(def.vietnameseTranslation, "kiên cường, mau phục hồi");
     assert.strictEqual(def.examples.length, 2);
     assert.strictEqual(def.examples[0], "Life is hard there, but the people are resilient.");
+    assert.strictEqual(entry.example, "Life is hard there, but the people are resilient.");
+    assert.ok(entry.examples && entry.examples.length === 2);
   });
 
   it("should return null when Cambridge returns a not-found page", () => {
@@ -152,22 +178,50 @@ describe("Wiktionary Vietnamese Extractor (cambridge.ts)", () => {
     assert.strictEqual(viText, "kiên cường, có khả năng phục hồi nhanh chóng");
   });
 
+  it("should prioritize comprehensive definition over narrow technical jargon", () => {
+    const viText = extractVietnameseFromWiktionary(SAMPLE_WIKTIONARY_ABANDON);
+    assert.strictEqual(viText, "từ bỏ; bỏ rơi, ruồng bỏ");
+  });
+
+  it("should extract bilingual contextual examples from Wiktionary", () => {
+    const examples = extractExamplesFromWiktionary(SAMPLE_WIKTIONARY_ABANDON, "abandon");
+    assert.ok(examples.length >= 2);
+    assert.strictEqual(examples[0], "to abandon a hope");
+    assert.strictEqual(examples[1], "to abandon one's family");
+    // Ensure French section is not leaked into English examples
+    assert.ok(!examples.some((e) => e.includes("Abandon de privilèges")));
+  });
+
   it("should return empty string on invalid or blank extract", () => {
     assert.strictEqual(extractVietnameseFromWiktionary(""), "");
     assert.strictEqual(extractVietnameseFromWiktionary("Chỉ có một dòng không hợp lệ"), "");
   });
 });
 
-describe("Multi-Tier Failover & 404 Resolution Engine (cambridge.ts)", () => {
+describe("Contextual Sentence Fallback Generator (cambridge.ts)", () => {
+  it("should generate part-of-speech appropriate contextual sentences", () => {
+    const adjEx = generateContextualSentence("resilient", "adjective");
+    assert.ok(adjEx.includes("resilient"));
+    assert.ok(adjEx.includes("complex challenges"));
+
+    const verbEx = generateContextualSentence("abandon", "verb");
+    assert.ok(verbEx.includes("abandon"));
+    assert.ok(verbEx.includes("desired outcome"));
+
+    const nounEx = generateContextualSentence("integrity", "noun");
+    assert.ok(nounEx.includes("integrity"));
+    assert.ok(nounEx.includes("core principles"));
+  });
+});
+
+describe("Multi-Tier Failover & Example Sentence Engine (cambridge.ts)", () => {
   const originalFetch = globalThis.fetch;
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
   });
 
-  it("should auto-failover to Free Dictionary + Wiktionary when Cambridge blocks with 403", async () => {
-    // Simulate: Cambridge returns HTTP 403 Forbidden (Cloudflare Challenge)
-    // and Free Dictionary + Wiktionary respond successfully
+  it("should auto-failover and extract contextual examples across providers when Cambridge blocks with 403", async () => {
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input.toString();
 
@@ -196,6 +250,10 @@ describe("Multi-Tier Failover & 404 Resolution Engine (cambridge.ts)", () => {
                 definitions: [
                   {
                     definition: "Able to withstand or recover quickly from difficult conditions.",
+                    // Note: definition 0 has no example, simulating real-world API
+                  },
+                  {
+                    definition: "Elastic; returning to original form.",
                     example: "Babies are generally far more resilient than new parents realize.",
                   },
                 ],
@@ -210,19 +268,12 @@ describe("Multi-Tier Failover & 404 Resolution Engine (cambridge.ts)", () => {
       }
 
       if (url.includes("vi.wiktionary.org")) {
-        const mockWikiResponse = {
-          query: {
-            pages: {
-              "12345": {
-                extract: SAMPLE_WIKTIONARY_EXTRACT,
-              },
-            },
-          },
-        };
-        return new Response(JSON.stringify(mockWikiResponse), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({
+            query: { pages: { "123": { extract: SAMPLE_WIKTIONARY_EXTRACT } } },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
       }
 
       return new Response("Not found", { status: 404 });
@@ -239,11 +290,51 @@ describe("Multi-Tier Failover & 404 Resolution Engine (cambridge.ts)", () => {
       "https://api.dictionaryapi.dev/media/pronunciations/en/resilient-us.mp3"
     );
     assert.strictEqual(result.partOfSpeech, "adjective");
-    assert.strictEqual(
-      result.definitions[0].vietnameseTranslation,
-      "kiên cường, có khả năng phục hồi nhanh chóng"
-    );
-    assert.ok(result.definitions[0].englishDef.includes("recover quickly"));
+    // Verify contextual example was successfully harvested from definition 1 & Wiktionary
+    assert.ok(result.example !== undefined && result.example.length > 0);
+    assert.ok(result.examples && result.examples.length >= 2);
+    assert.ok(result.examples.includes("Babies are generally far more resilient than new parents realize."));
+    assert.ok(result.definitions[0].examples.length >= 2);
+  });
+
+  it("should fetch sentences from Tatoeba or fallback generator when Free Dict has 0 examples", async () => {
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("dictionary.cambridge.org")) {
+        return new Response(CLOUDFLARE_CHALLENGE_HTML, { status: 403, headers: { "content-type": "text/html" } });
+      }
+
+      if (url.includes("api.dictionaryapi.dev")) {
+        // Return definitions with ZERO examples
+        return new Response(
+          JSON.stringify([
+            {
+              word: "apple",
+              meanings: [{ partOfSpeech: "noun", definitions: [{ definition: "A round fruit." }] }],
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      if (url.includes("tatoeba.org")) {
+        return new Response(
+          JSON.stringify({
+            results: [{ text: "I bought fresh apples from the farmer's market." }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      return new Response("Not found", { status: 404 });
+    }) as any;
+
+    const result = await fetchFallbackDictionaryWord("apple");
+    assert.ok(result !== null);
+    assert.ok(result.example !== undefined);
+    assert.ok(result.example.includes("apples") || result.example.includes("apple"));
+    assert.ok(result.examples && result.examples.length > 0);
   });
 
   it("should return null when word does not exist in any dictionary provider", async () => {
@@ -273,7 +364,7 @@ describe("Dictionary API Route Handler (/api/dictionary/lookup)", () => {
     assert.ok(body.error.includes("Tham số 'word'"));
   });
 
-  it("should return 200 with dictionary entry when word is found", async () => {
+  it("should return 200 with dictionary entry and example sentences when word is found", async () => {
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url.includes("dictionary.cambridge.org/dictionary/english-vietnamese")) {
@@ -294,6 +385,8 @@ describe("Dictionary API Route Handler (/api/dictionary/lookup)", () => {
     assert.strictEqual(body.data.term, "resilient");
     assert.strictEqual(body.data.partOfSpeech, "adjective");
     assert.strictEqual(body.data.definitions[0].vietnameseTranslation, "kiên cường, mau phục hồi");
+    assert.strictEqual(body.data.example, "Life is hard there, but the people are resilient.");
+    assert.ok(body.data.examples.length === 2);
   });
 
   it("should return 404 when word cannot be found anywhere", async () => {
