@@ -35,8 +35,13 @@ LanguageLearningApp/
 ├── .gitignore                                      # Bộ lọc file rác / git ignore
 ├── README.md                                       # Tài liệu hướng dẫn kỹ thuật
 │
+├── docs/                                           # Tài liệu thiết kế & quy trình phát triển sản phẩm
+│   └── design/
+│       └── vocabulary-builder-architecture.md      # Sơ đồ kiến trúc & luồng chức năng tạo từ vựng
+│
 ├── tests/                                          # Unit Test Suites (node:test + spec reporter)
 │   ├── run.js                                      # Test runner tự động phát hiện test files
+│   ├── cambridge.test.ts                           # Unit tests cho Cambridge Scraper & DOM Parser
 │   ├── srs.test.ts                                 # Unit tests cho Spaced Repetition Engine (SM-2)
 │   ├── sync.test.ts                                # Unit tests cho Cloud Sync & Data Mapping Engine
 │   ├── utils.test.ts                               # Unit tests cho hàm tiện ích (date, badge color, cn)
@@ -60,6 +65,7 @@ LanguageLearningApp/
     │   └── api/
     │       ├── ai/generate-cards/route.ts          # API trích xuất thẻ từ ảnh / chủ đề (Gemini)
     │       ├── ai/check-grammar/route.ts           # API chấm ngữ pháp câu trả lời
+    │       ├── dictionary/lookup/route.ts          # API tra cứu từ điển Cambridge (Anh - Việt & Anh - Anh)
     │       └── speech/assess/route.ts              # API chấm phát âm PronScore (Azure Speech)
     │
     ├── components/
@@ -84,6 +90,7 @@ LanguageLearningApp/
     │
     ├── lib/
     │   ├── srs.ts                                  # Thuật toán Spaced Repetition (Modified SM-2 / FSRS)
+    │   ├── cambridge.ts                            # Động cơ cào và phân tích từ điển Cambridge
     │   ├── audio.ts                                # Web Speech TTS và MediaRecorder
     │   ├── gemini.ts                               # Client Google Gemini 2.5 Flash
     │   ├── azure-speech.ts                         # Azure AI Speech Assessment & Heuristic fallback
@@ -130,7 +137,7 @@ cp .env.example .env.local
 # Khởi chạy dev server
 npm run dev
 
-# Chạy toàn bộ Unit Tests (29 test cases cho SRS, Sync, PronScore, Utils)
+# Chạy toàn bộ Unit Tests (35 test cases cho Cambridge, SRS, Sync, PronScore, Utils)
 npm test
 
 # Kiểm tra lint & kiểu dữ liệu TypeScript

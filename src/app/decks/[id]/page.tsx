@@ -19,6 +19,9 @@ import {
   BookOpen,
   Edit3,
   CheckCircle2,
+  Loader2,
+  AlertCircle,
+  Search,
 } from "lucide-react";
 import { formatRelativeDate } from "@/lib/utils";
 
@@ -39,6 +42,47 @@ export default function DeckDetailPage() {
   const [newPartOfSpeech, setNewPartOfSpeech] = useState("noun");
   const [newDef, setNewDef] = useState("");
   const [newExample, setNewExample] = useState("");
+  const [newAudioUrl, setNewAudioUrl] = useState("");
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  const handleLookupCambridge = async () => {
+    if (!newTerm.trim()) return;
+    try {
+      setIsLookingUp(true);
+      setLookupError(null);
+      const res = await fetch(`/api/dictionary/lookup?word=${encodeURIComponent(newTerm.trim())}`);
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !data.data) {
+        setLookupError(data.message || "Không tìm thấy từ trên từ điển Cambridge.");
+        return;
+      }
+
+      const wordEntry = data.data;
+      if (wordEntry.phoneticUk || wordEntry.phoneticUs) {
+        setNewPhonetic(wordEntry.phoneticUk || wordEntry.phoneticUs);
+      }
+      if (wordEntry.partOfSpeech) {
+        setNewPartOfSpeech(wordEntry.partOfSpeech);
+      }
+      if (wordEntry.audioUsUrl || wordEntry.audioUkUrl) {
+        setNewAudioUrl(wordEntry.audioUsUrl || wordEntry.audioUkUrl);
+      }
+
+      const firstDef = wordEntry.definitions?.[0];
+      if (firstDef) {
+        setNewDef(firstDef.vietnameseTranslation || firstDef.englishDef);
+        if (firstDef.examples && firstDef.examples.length > 0) {
+          setNewExample(firstDef.examples[0]);
+        }
+      }
+    } catch {
+      setLookupError("Lỗi kết nối tới dịch vụ tra từ điển Cambridge.");
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
 
   useEffect(() => {
     const allDecks = getLocalDecks();
@@ -63,6 +107,7 @@ export default function DeckDetailPage() {
       partOfSpeech: newPartOfSpeech,
       definition: newDef.trim(),
       exampleSentence: newExample.trim(),
+      audioUrl: newAudioUrl.trim() || undefined,
       status: "new",
       repetition: 0,
       easinessFactor: 2.5,
@@ -79,6 +124,8 @@ export default function DeckDetailPage() {
     setNewPhonetic("");
     setNewDef("");
     setNewExample("");
+    setNewAudioUrl("");
+    setLookupError(null);
     setShowAddModal(false);
   };
 
@@ -297,7 +344,28 @@ export default function DeckDetailPage() {
             <form onSubmit={handleAddManualCard} className="mt-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold uppercase text-slate-500">Từ vựng (Term):</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase text-slate-500">Từ vựng (Term):</label>
+                    <button
+                      type="button"
+                      onClick={handleLookupCambridge}
+                      disabled={!newTerm.trim() || isLookingUp}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded-lg dark:bg-brand-950 dark:text-brand-300 disabled:opacity-50 transition-colors"
+                      title="Tự động tra phiên âm, từ loại, nghĩa tiếng Việt, câu ví dụ và audio phát âm chuẩn Cambridge"
+                    >
+                      {isLookingUp ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Đang tra...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3 w-3" />
+                          <span>⚡ Tra Cambridge</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <input
                     type="text"
                     required
@@ -318,6 +386,33 @@ export default function DeckDetailPage() {
                   />
                 </div>
               </div>
+
+              {lookupError && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50 text-amber-800 text-xs border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{lookupError}</span>
+                </div>
+              )}
+
+              {newAudioUrl && (
+                <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Đã lấy phát âm Cambridge MP3</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const audio = new Audio(newAudioUrl);
+                      audio.play();
+                    }}
+                    className="flex items-center gap-1 text-[11px] font-bold underline"
+                  >
+                    <Volume2 className="h-3 w-3" />
+                    <span>Nghe thử</span>
+                  </button>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-bold uppercase text-slate-500">Nghĩa tiếng Việt:</label>
