@@ -27,12 +27,20 @@ Dự án xây dựng vòng lặp học tập khép kín 4 giai đoạn:
 LanguageLearningApp/
 ├── package.json                                    # Scripts & dependencies
 ├── tsconfig.json                                   # Cấu hình TypeScript strict mode
+├── .eslintrc.json                                  # Cấu hình Next.js ESLint
 ├── tailwind.config.ts                              # Cấu hình Theme màu & Design System
 ├── postcss.config.mjs                              # PostCSS plugin pipeline
 ├── next.config.mjs                                 # Cấu hình Next.js App Router
 ├── .env.example                                    # Mẫu biến môi trường bảo mật
 ├── .gitignore                                      # Bộ lọc file rác / git ignore
 ├── README.md                                       # Tài liệu hướng dẫn kỹ thuật
+│
+├── tests/                                          # Unit Test Suites (node:test + spec reporter)
+│   ├── run.js                                      # Test runner tự động phát hiện test files
+│   ├── srs.test.ts                                 # Unit tests cho Spaced Repetition Engine (SM-2)
+│   ├── sync.test.ts                                # Unit tests cho Cloud Sync & Data Mapping Engine
+│   ├── utils.test.ts                               # Unit tests cho hàm tiện ích (date, badge color, cn)
+│   └── azure-speech.test.ts                        # Unit tests cho PronScore assessment simulator
 │
 ├── supabase/                                       # Cơ sở dữ liệu PostgreSQL
 │   ├── schema.sql                                  # 4 bảng cốt lõi (decks, cards, speaking_attempts, sessions) + Views + Triggers
@@ -69,6 +77,8 @@ LanguageLearningApp/
     │   │   └── SpeechPracticeModal.tsx             # Modal thu âm giọng nói và hiển thị kết quả
     │   ├── ai/
     │   │   └── PhotoToCardModal.tsx                # Modal tạo từ vựng thông minh từ ảnh chụp / chủ đề
+    │   ├── auth/
+    │   │   └── AuthModal.tsx                       # Modal Đăng nhập/Đăng ký & Đồng bộ Supabase Cloud
     │   └── conversation/
     │       └── RoleplayChat.tsx                    # Giao diện hội thoại theo kịch bản mục tiêu
     │
@@ -78,6 +88,8 @@ LanguageLearningApp/
     │   ├── gemini.ts                               # Client Google Gemini 2.5 Flash
     │   ├── azure-speech.ts                         # Azure AI Speech Assessment & Heuristic fallback
     │   ├── storage.ts                              # Adapter Local-First IndexedDB / LocalStorage
+    │   ├── supabase.ts                             # Supabase Client & Authentication (Email / OAuth)
+    │   ├── sync.ts                                 # Đồng bộ hai chiều LocalStorage <-> Supabase Cloud
     │   └── utils.ts                                # Tiện ích định dạng, ghép class cn()
     │
     └── types/
@@ -113,9 +125,17 @@ cp .env.example .env.local
 2. **Azure AI Speech Key & Region:** Đăng ký gói Free Tier (F0) tại [Azure Portal](https://portal.azure.com) (miễn phí 5 giờ âm thanh/tháng) để kích hoạt chấm điểm phát âm `PronScore`.
 *(Lưu ý: Nếu chưa cấu hình API Key, ứng dụng vẫn tự động kích hoạt Heuristic Simulation Fallback và Web Speech API để lập trình viên có thể test toàn bộ tính năng và giao diện mà không bị lỗi).*
 
-### Bước 4: Khởi chạy môi trường phát triển (Dev Server)
+### Bước 4: Khởi chạy môi trường phát triển & Chạy Tests
 ```bash
+# Khởi chạy dev server
 npm run dev
+
+# Chạy toàn bộ Unit Tests (29 test cases cho SRS, Sync, PronScore, Utils)
+npm test
+
+# Kiểm tra lint & kiểu dữ liệu TypeScript
+npm run lint
+npm run type-check
 ```
 Mở trình duyệt tại: [http://localhost:3000](http://localhost:3000)
 

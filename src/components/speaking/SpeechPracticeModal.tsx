@@ -109,7 +109,7 @@ export function SpeechPracticeModal({ card, onClose }: SpeechPracticeModalProps)
             Câu hỏi gợi ý nói:
           </p>
           <p className="mt-1 text-base font-semibold text-slate-900 dark:text-white">
-            "{card.speakingPrompt || `How does the word '${card.term}' relate to your daily experience?`}"
+            &ldquo;{card.speakingPrompt || `How does the word '${card.term}' relate to your daily experience?`}&rdquo;
           </p>
           <div className="mt-2 flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400">
             <span>Bắt buộc sử dụng từ:</span>
@@ -175,7 +175,7 @@ export function SpeechPracticeModal({ card, onClose }: SpeechPracticeModalProps)
                       Gợi ý diễn đạt tự nhiên hơn:
                     </span>
                     <p className="text-sm font-medium text-slate-900 dark:text-white mt-0.5">
-                      "{grammarFeedback.naturalRewrite}"
+                      &ldquo;{grammarFeedback.naturalRewrite}&rdquo;
                     </p>
                   </div>
                 )}

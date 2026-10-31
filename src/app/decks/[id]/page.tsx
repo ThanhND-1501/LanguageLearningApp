@@ -264,7 +264,7 @@ export default function DeckDetailPage() {
 
                   {card.exampleSentence && (
                     <p className="text-xs text-slate-500 italic pl-8">
-                      "{card.exampleSentence}"
+                      &ldquo;{card.exampleSentence}&rdquo;
                     </p>
                   )}
                 </div>
