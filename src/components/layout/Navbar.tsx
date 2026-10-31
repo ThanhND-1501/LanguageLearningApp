@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { isSupabaseConfigured, getSessionUser } from "@/lib/supabase";
 import { getActiveUser } from "@/lib/auth";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { User } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { UserProfile } from "@/types";
 
 export function Navbar() {
