@@ -38,6 +38,7 @@ LanguageLearningApp/
 ├── tests/                                          # Unit Test Suites (node:test + spec reporter)
 │   ├── run.js                                      # Test runner tự động phát hiện test files
 │   ├── srs.test.ts                                 # Unit tests cho Spaced Repetition Engine (SM-2)
+│   ├── sync.test.ts                                # Unit tests cho Cloud Sync & Data Mapping Engine
 │   ├── utils.test.ts                               # Unit tests cho hàm tiện ích (date, badge color, cn)
 │   └── azure-speech.test.ts                        # Unit tests cho PronScore assessment simulator
 │
@@ -76,6 +77,8 @@ LanguageLearningApp/
     │   │   └── SpeechPracticeModal.tsx             # Modal thu âm giọng nói và hiển thị kết quả
     │   ├── ai/
     │   │   └── PhotoToCardModal.tsx                # Modal tạo từ vựng thông minh từ ảnh chụp / chủ đề
+    │   ├── auth/
+    │   │   └── AuthModal.tsx                       # Modal Đăng nhập/Đăng ký & Đồng bộ Supabase Cloud
     │   └── conversation/
     │       └── RoleplayChat.tsx                    # Giao diện hội thoại theo kịch bản mục tiêu
     │
@@ -85,6 +88,8 @@ LanguageLearningApp/
     │   ├── gemini.ts                               # Client Google Gemini 2.5 Flash
     │   ├── azure-speech.ts                         # Azure AI Speech Assessment & Heuristic fallback
     │   ├── storage.ts                              # Adapter Local-First IndexedDB / LocalStorage
+    │   ├── supabase.ts                             # Supabase Client & Authentication (Email / OAuth)
+    │   ├── sync.ts                                 # Đồng bộ hai chiều LocalStorage <-> Supabase Cloud
     │   └── utils.ts                                # Tiện ích định dạng, ghép class cn()
     │
     └── types/
@@ -125,7 +130,7 @@ cp .env.example .env.local
 # Khởi chạy dev server
 npm run dev
 
-# Chạy toàn bộ Unit Tests (24 test cases cho SRS, PronScore, Utils)
+# Chạy toàn bộ Unit Tests (29 test cases cho SRS, Sync, PronScore, Utils)
 npm test
 
 # Kiểm tra lint & kiểu dữ liệu TypeScript
