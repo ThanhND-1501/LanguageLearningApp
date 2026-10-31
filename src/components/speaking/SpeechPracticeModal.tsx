@@ -5,6 +5,7 @@ import { Card, PronScoreResult, GrammarEvaluationResult } from "@/types";
 import { Mic, Square, Sparkles, Loader2, Volume2, CheckCircle2, AlertCircle } from "lucide-react";
 import { BrowserAudioRecorder, playNativePronunciation } from "@/lib/audio";
 import { PronScoreDisplay } from "./PronScoreDisplay";
+import { recordStudyActivity } from "@/lib/auth";
 
 interface SpeechPracticeModalProps {
   card: Card;
@@ -54,6 +55,12 @@ export function SpeechPracticeModal({ card, onClose }: SpeechPracticeModalProps)
         const assessData = await assessRes.json();
         if (assessData.success) {
           setScores(assessData.result);
+          recordStudyActivity({
+            type: "speech_practice",
+            title: `Luyện phát âm: ${card.term}`,
+            description: `Đạt ${assessData.result.pronScore}/100 điểm PronScore Azure Speech`,
+            metadata: { term: card.term, score: assessData.result.pronScore },
+          });
         }
       }
 

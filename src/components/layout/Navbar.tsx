@@ -16,20 +16,27 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isSupabaseConfigured, getSessionUser } from "@/lib/supabase";
+import { getActiveUser } from "@/lib/auth";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { User } from "@supabase/supabase-js";
+import { UserProfile } from "@/types";
 
 export function Navbar() {
   const pathname = usePathname();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [activeProfile, setActiveProfile] = useState<UserProfile | null>(null);
   const isCloudConfigured = isSupabaseConfigured();
 
   useEffect(() => {
+    // Check local active profile
+    const localUser = getActiveUser();
+    setActiveProfile(localUser);
+
     if (isCloudConfigured) {
       getSessionUser().then((user) => setCurrentUser(user));
     }
-  }, [isCloudConfigured]);
+  }, [isCloudConfigured, pathname]);
 
   const navItems = [
     { href: "/", label: "Tổng quan", icon: Layers },
@@ -79,6 +86,30 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* User Profile / Login Link */}
+            {activeProfile || currentUser ? (
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 p-1 sm:px-3 sm:py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-950/60 dark:hover:text-brand-300 transition-colors border border-slate-200 dark:border-slate-700"
+                title="Hồ sơ cá nhân & Thống kê"
+              >
+                <div className="h-6 w-6 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  {(activeProfile?.name || currentUser?.email || "U").charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden sm:inline text-xs font-semibold max-w-[100px] truncate text-slate-800 dark:text-slate-200">
+                  {activeProfile?.name || currentUser?.email}
+                </span>
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-xs"
+              >
+                <UserIcon className="h-3.5 w-3.5" />
+                <span>Đăng nhập</span>
+              </Link>
+            )}
+
             {/* Cloud Sync & Auth Button */}
             <button
               onClick={() => setShowAuthModal(true)}
@@ -95,24 +126,24 @@ export function Navbar() {
                   ? `Đã đồng bộ với tài khoản: ${currentUser.email}`
                   : isCloudConfigured
                   ? "Đăng nhập để đồng bộ Supabase Cloud"
-                  : "Chế độ lưu cục bộ Local-First (Bấm để xem hướng dẫn Supabase)"
+                  : "Chế độ lưu cục bộ Local-First (Bấm để xem chi tiết)"
               }
             >
               {currentUser ? (
                 <>
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span className="hidden sm:inline max-w-[120px] truncate">{currentUser.email}</span>
+                  <span className="hidden sm:inline max-w-[100px] truncate">{currentUser.email}</span>
                   <span className="sm:hidden">Đồng bộ</span>
                 </>
               ) : isCloudConfigured ? (
                 <>
                   <Cloud className="h-3.5 w-3.5 text-brand-600" />
-                  <span>Đồng bộ Cloud</span>
+                  <span className="hidden sm:inline">Đồng bộ Cloud</span>
                 </>
               ) : (
                 <>
                   <Cloud className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Local-First</span>
+                  <span className="hidden sm:inline">Local-First</span>
                 </>
               )}
             </button>
@@ -120,7 +151,7 @@ export function Navbar() {
             {/* Study streak badge */}
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
               <Flame className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-              <span>7 ngày</span>
+              <span>{activeProfile?.streakDays || 7} ngày</span>
             </div>
 
             <Link

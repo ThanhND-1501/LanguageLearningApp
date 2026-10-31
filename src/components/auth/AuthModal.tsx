@@ -181,6 +181,16 @@ export function AuthModal({ onClose, onSyncComplete }: AuthModalProps) {
             <div className="mt-2.5 pt-2 border-t border-amber-200/60 dark:border-amber-900/40 text-[11px] text-slate-500 dark:text-slate-400">
               💡 Để đồng bộ đám mây: Thêm <code className="bg-white/80 px-1 py-0.5 rounded text-amber-800 dark:bg-slate-800 dark:text-amber-300">NEXT_PUBLIC_SUPABASE_URL</code> và <code className="bg-white/80 px-1 py-0.5 rounded text-amber-800 dark:bg-slate-800 dark:text-amber-300">ANON_KEY</code> vào file <code className="font-mono">.env.local</code>.
             </div>
+            <div className="mt-3 pt-2.5 border-t border-amber-200/60 dark:border-amber-900/40 flex items-center justify-between">
+              <span className="text-[11px] text-slate-600 dark:text-slate-300">Kho từ vựng cá nhân:</span>
+              <a
+                href="/login"
+                onClick={onClose}
+                className="inline-flex items-center gap-1 font-bold text-xs text-brand-600 hover:text-brand-700 dark:text-brand-300 underline"
+              >
+                <span>Màn hình Đăng nhập & Tạo tài khoản &rarr;</span>
+              </a>
+            </div>
           </div>
         )}
 

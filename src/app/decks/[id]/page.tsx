@@ -24,6 +24,7 @@ import {
   Search,
 } from "lucide-react";
 import { formatRelativeDate } from "@/lib/utils";
+import { recordStudyActivity } from "@/lib/auth";
 
 export default function DeckDetailPage() {
   const params = useParams();
@@ -90,6 +91,13 @@ export default function DeckDetailPage() {
       if (allEx.length > 0) {
         setAvailableExamples(allEx);
       }
+
+      recordStudyActivity({
+        type: "cambridge_lookup",
+        title: `Tra từ điển Cambridge: ${wordEntry.term}`,
+        description: `Tra cứu phát âm và câu ví dụ cho '${wordEntry.term}'`,
+        metadata: { term: wordEntry.term },
+      });
     } catch {
       setLookupError("Lỗi kết nối tới dịch vụ tra từ điển Cambridge.");
     } finally {
@@ -132,6 +140,13 @@ export default function DeckDetailPage() {
     const updated = [newCard, ...allCards];
     saveLocalCards(updated);
     setCards(updated.filter((c) => c.deckId === deckId));
+
+    recordStudyActivity({
+      type: "card_created",
+      title: `Thêm từ mới: ${newCard.term}`,
+      description: `Đã lưu từ '${newCard.term}' (${newCard.partOfSpeech}) vào kho từ vựng cá nhân`,
+      metadata: { term: newCard.term, deckId },
+    });
 
     setNewTerm("");
     setNewPhonetic("");

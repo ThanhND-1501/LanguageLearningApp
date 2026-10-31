@@ -141,3 +141,65 @@ export interface GrammarEvaluationResult {
   correctedSentence: string;
   naturalRewrite: string;
 }
+
+// ------------------------------------------------------------------------------
+// User Account, Personalization & Activity History Types
+// ------------------------------------------------------------------------------
+export type TargetProficiencyLevel =
+  | 'A2'
+  | 'B1'
+  | 'B2'
+  | 'C1'
+  | 'C2'
+  | 'IELTS 6.5'
+  | 'IELTS 7.5+'
+  | 'TOEIC 800+';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  targetLevel: TargetProficiencyLevel;
+  dailyGoalCards: number;
+  streakDays: number;
+  lastActiveDate: string;
+  createdAt: string;
+  isCloudSynced: boolean;
+}
+
+export type ActivityType =
+  | 'srs_review'
+  | 'card_created'
+  | 'speech_practice'
+  | 'cambridge_lookup'
+  | 'conversation'
+  | 'deck_created';
+
+export interface StudyActivity {
+  id: string;
+  userId: string;
+  type: ActivityType;
+  title: string;
+  description: string;
+  metadata?: {
+    term?: string;
+    deckId?: string;
+    score?: number;
+    cardsCount?: number;
+    rating?: string;
+  };
+  timestamp: string;
+}
+
+export interface UserPersonalStats {
+  totalWords: number;
+  masteredWords: number;
+  learningWords: number;
+  newWords: number;
+  totalSpeakingAttempts: number;
+  avgPronScore: number;
+  totalStudyDays: number;
+  retentionRate: number;
+}
+
