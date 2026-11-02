@@ -68,6 +68,11 @@ export interface PronScoreResult {
   completenessScore: number; // Ratio of recognized words vs target text (0 - 100)
   prosodyScore: number;      // Stress, intonation, and rhythm naturalness (0 - 100)
   wordScores: WordScore[];
+  // Telemetry & Verification metadata
+  provider?: string;
+  recognizedTranscript?: string;
+  latencyMs?: number;
+  audioSizeBytes?: number;
 }
 
 export interface SpeakingAttempt {

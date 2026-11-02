@@ -68,6 +68,10 @@ export class BrowserAudioRecorder {
     this.mediaRecorder.start(100); // 100ms slice
   }
 
+  getStream(): MediaStream | null {
+    return this.stream;
+  }
+
   stop(): Promise<{ audioBlob: Blob; audioUrl: string }> {
     return new Promise((resolve, reject) => {
       if (!this.mediaRecorder) {
@@ -89,5 +93,71 @@ export class BrowserAudioRecorder {
 
       this.mediaRecorder.stop();
     });
+  }
+}
+
+/**
+ * Monitors live microphone input volume using browser AudioContext and AnalyserNode
+ * Returns a teardown function to clean up listeners and audio context
+ */
+export function createAudioVolumeMonitor(
+  stream: MediaStream,
+  onVolume: (volume: number) => void // 0 to 100
+): () => void {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return () => {};
+
+    const audioContext = new AudioContextClass();
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.5;
+    source.connect(analyser);
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    let animationFrameId: number;
+    let isActive = true;
+
+    const tick = () => {
+      if (!isActive) return;
+      analyser.getByteFrequencyData(dataArray);
+
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const avg = sum / dataArray.length;
+      // Convert to 0 - 100 percentage
+      const volumePercent = Math.min(100, Math.round((avg / 64) * 100));
+      onVolume(volumePercent);
+
+      animationFrameId = requestAnimationFrame(tick);
+    };
+
+    tick();
+
+    return () => {
+      isActive = false;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      try {
+        source.disconnect();
+        analyser.disconnect();
+        if (audioContext.state !== "closed") {
+          audioContext.close();
+        }
+      } catch {
+        // Ignore close errors
+      }
+    };
+  } catch (err) {
+    console.warn("Unable to initialize AudioContext volume monitor:", err);
+    return () => {};
   }
 }

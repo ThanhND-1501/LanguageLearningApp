@@ -175,6 +175,115 @@ Trả về DUY NHẤT một JSON format:
 }
 
 /**
+ * Generates an authentic, context-aware conversational response for AI Roleplay
+ * Powered by Google Gemini 2.5 Flash with Groq Llama 3.3 failover
+ */
+export async function generateRoleplayReply(params: {
+  scenarioTitle: string;
+  aiPersona: string;
+  targetWords: string[];
+  usedWords: string[];
+  history: Array<{ role: "assistant" | "user"; content: string }>;
+  userMessage: string;
+}): Promise<string> {
+  const { scenarioTitle, aiPersona, targetWords, usedWords, history, userMessage } = params;
+  const remainingWords = targetWords.filter((w) => !usedWords.includes(w));
+
+  // 1. Try Google Gemini 2.5 Flash
+  if (GEMINI_API_KEY && !GEMINI_API_KEY.includes("your_gemini_api_key_here") && GEMINI_API_KEY.length > 10) {
+    try {
+      const prompt = `You are roleplaying as "${aiPersona}" in an interactive English learning scenario: "${scenarioTitle}".
+The user is an English language learner practicing spoken communication.
+
+Target vocabulary words for this scenario: [${targetWords.join(", ")}].
+Already used words: [${usedWords.join(", ")}].
+Remaining words to use: [${remainingWords.join(", ")}].
+
+Recent conversation history:
+${history.slice(-6).map((m) => `${m.role === "assistant" ? aiPersona : "Learner"}: ${m.content}`).join("\n")}
+Learner: ${userMessage}
+
+YOUR TASK:
+1. Respond naturally in authentic spoken English (2 to 3 sentences max), staying strictly in character as ${aiPersona}.
+2. React genuinely to what the learner actually expressed.
+3. If there are remaining target words (${remainingWords.join(", ")}), subtly nudge the dialogue or ask a targeted follow-up question so the learner naturally gets a chance to use them.
+4. Keep the tone conversational, professional, and encouraging.
+
+Respond ONLY with your spoken dialogue in English. No markdown, no prefixes, no explanations.`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 250,
+            },
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (text) {
+          return text.replace(/^["']|["']$/g, "").trim();
+        }
+      }
+    } catch (err) {
+      console.warn("Gemini Roleplay API error, trying Groq fallback:", err);
+    }
+  }
+
+  // 2. Try Groq Llama 3.3
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey && !groqKey.includes("your_groq_api_key_here") && groqKey.startsWith("gsk_")) {
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${groqKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            {
+              role: "system",
+              content: `You are roleplaying as ${aiPersona} in "${scenarioTitle}". Respond in 2-3 natural spoken English sentences. React to the learner and ask an engaging question to help them practice words: ${remainingWords.join(", ")}.`,
+            },
+            ...history.slice(-6).map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+            { role: "user", content: userMessage },
+          ],
+          temperature: 0.7,
+          max_tokens: 200,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.choices?.[0]?.message?.content?.trim();
+        if (text) {
+          return text.replace(/^["']|["']$/g, "").trim();
+        }
+      }
+    } catch (err) {
+      console.warn("Groq Roleplay API error:", err);
+    }
+  }
+
+  // 3. Fallback template
+  const nextTarget = remainingWords[0] || targetWords[0];
+  return `That makes a lot of sense. Speaking of our strategy, how do you think we can best incorporate concepts like '${nextTarget}' into our upcoming objectives?`;
+}
+
+/**
  * Fallback dataset for instant preview without requiring an API key immediately
  */
 function getFallbackGeneratedCards(topic: string): GeneratedCardItem[] {
