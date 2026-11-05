@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "test": "node --test-reporter=spec tests/run.js"
+    "test": "node --test-reporter=spec tests/run.js",
+    "openpronounce:start": "bash services/openpronounce/run_server.sh",
+    "openpronounce:health": "curl -s http://127.0.0.1:8000/health"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",

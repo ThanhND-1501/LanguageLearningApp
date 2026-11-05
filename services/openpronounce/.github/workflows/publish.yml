@@ -1,0 +1,62 @@
+name: Publish to PyPI
+
+# Runs when a v* tag is pushed, or when dispatched on a tag by the Release workflow
+# (PyPI trusted publishing does not support reusable workflows, so this must be the
+# top-level workflow). Trusted publisher on pypi.org: owner Halleck45, repository
+# OpenPronounce, workflow publish.yml, environment pypi.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check that the ref is a tag matching pyproject version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          test "${{ github.ref_type }}" = "tag" || { echo "must run on a tag, not $TAG"; exit 1; }
+          version=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v$version" = "$TAG" || { echo "tag $TAG != v$version"; exit 1; }
+      - run: pip install build && python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: dist/*
+          generate_release_notes: true
