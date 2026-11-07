@@ -221,6 +221,53 @@ async function assessWithGroqWhisper(
 }
 
 /**
+ * Evaluates Prosody score (0 - 100) from acoustic pitch (F0 contour) and energy variations.
+ * Follows speech prosody standards: natural pitch intonation + dynamic stress rhythm.
+ */
+function calculateProsodyFromContour(prosody?: { f0?: number[]; energy?: number[] }): number {
+  if (!prosody) return 75;
+
+  const f0List = (prosody.f0 || []).filter((v) => typeof v === "number" && v > 50 && v < 500);
+  const energyList = (prosody.energy || []).filter((v) => typeof v === "number" && v > 0);
+
+  // 1. Pitch Variation (Intonation contour naturalness)
+  let pitchScore = 75;
+  if (f0List.length >= 5) {
+    const meanF0 = f0List.reduce((a, b) => a + b, 0) / f0List.length;
+    const varianceF0 = f0List.reduce((a, b) => a + Math.pow(b - meanF0, 2), 0) / f0List.length;
+    const stdF0 = Math.sqrt(varianceF0);
+
+    // Natural English intonation standard deviation: 18 - 45 Hz
+    if (stdF0 >= 18 && stdF0 <= 45) {
+      pitchScore = Math.min(100, Math.round(85 + ((stdF0 - 18) / 27) * 15));
+    } else if (stdF0 < 18) {
+      // Flat, monotone speech (robotic tone)
+      pitchScore = Math.max(30, Math.round(30 + (stdF0 / 18) * 55));
+    } else {
+      // Overly erratic or noisy pitch
+      pitchScore = Math.max(50, Math.round(85 - ((stdF0 - 45) / 35) * 35));
+    }
+  }
+
+  // 2. Energy Variation (Sentence stress & syllable dynamic range)
+  let energyScore = 75;
+  if (energyList.length >= 5) {
+    const meanEnergy = energyList.reduce((a, b) => a + b, 0) / energyList.length;
+    const varianceEnergy = energyList.reduce((a, b) => a + Math.pow(b - meanEnergy, 2), 0) / energyList.length;
+    const stdEnergy = Math.sqrt(varianceEnergy);
+
+    // Dynamic contrast between stressed & unstressed syllables (scale 0-250, target std ~ 25-55)
+    if (stdEnergy >= 25) {
+      energyScore = Math.min(100, Math.round(80 + Math.min(1, (stdEnergy - 25) / 30) * 20));
+    } else {
+      energyScore = Math.max(35, Math.round(35 + (stdEnergy / 25) * 45));
+    }
+  }
+
+  return Math.min(100, Math.max(0, Math.round(pitchScore * 0.6 + energyScore * 0.4)));
+}
+
+/**
  * Assesses pronunciation using OpenPronounce (Local Wav2Vec2 + DTW Phoneme Engine)
  * Runs 100% locally on localhost:8000, 100% open-source, private & zero-cost
  */
@@ -237,7 +284,7 @@ async function assessWithOpenPronounce(
     formData.append("lang", "en");
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     const response = await fetch(`${serviceUrl}/pronunciation`, {
       method: "POST",
@@ -253,34 +300,39 @@ async function assessWithOpenPronounce(
 
     const data = await response.json();
     if (typeof data.score === "number") {
-      const overallScore = Math.min(100, Math.max(0, Math.round(data.score)));
       const differences = data.differences || {};
       const phonemeErrorRate = differences.phoneme_error_rate ?? 0;
-      const wordErrorRate = differences.word_error_rate ?? 0;
       const acousticDistance = data.acoustic_distance ?? 10;
 
-      // Accuracy: inverse of phoneme error rate (0 - 100)
+      // 1. Accuracy: Standard phoneme accuracy (100 * (1 - Phoneme Error Rate))
       const accuracyScore = Math.min(100, Math.max(0, Math.round(100 * (1 - phonemeErrorRate))));
 
-      // Fluency: derived from acoustic distance and speech pacing (lower distance = higher fluency)
-      // distance ~6 is good (100%), ~15 is poor (50%)
-      const fluencyScore = Math.min(
-        100,
-        Math.max(40, Math.round(100 - Math.max(0, acousticDistance - 6) * 6))
-      );
+      // 2. Prosody: True acoustic F0 pitch intonation & stress energy dynamics
+      const prosodyScore = calculateProsodyFromContour(data.prosody);
 
-      // Completeness: inverse of word error rate
-      const completenessScore = Math.min(100, Math.max(0, Math.round(100 * (1 - wordErrorRate))));
-
-      // Prosody: pitch and energy naturalness
-      const prosodyScore = Math.round(accuracyScore * 0.3 + fluencyScore * 0.7);
-
-      // Target words scoring breakdown
+      // 3. Word-level scores & error classification (International Assessment Standard)
       const targetWords = referenceText
         .toLowerCase()
         .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
         .split(/\s+/)
         .filter(Boolean);
+
+      const rawErrors: Array<{
+        position?: number;
+        word?: string;
+        expected?: string;
+        actual?: string;
+        confidence?: number;
+        phones?: Array<{ expected: string; heard: string; confidence: number }>;
+      }> = differences.errors || [];
+
+      // Map errors by normalized word
+      const errorMap = new Map<string, (typeof rawErrors)[0]>();
+      for (const err of rawErrors) {
+        if (err.word) {
+          errorMap.set(err.word.toLowerCase(), err);
+        }
+      }
 
       const wordsWithErrors: string[] = (differences.words_with_errors || []).map((w: string) =>
         w.toLowerCase()
@@ -291,33 +343,88 @@ async function assessWithOpenPronounce(
         .split(/\s+/)
         .filter(Boolean);
 
+      let omittedWordsCount = 0;
+
       const wordScores: WordScore[] = targetWords.map((word) => {
-        const hasError = wordsWithErrors.includes(word);
+        const errorDetail = errorMap.get(word);
+        const hasError = wordsWithErrors.includes(word) || !!errorDetail;
         const wasRecognized = recognizedWords.includes(word);
 
-        if (!wasRecognized && hasError) {
+        // Case A: Omission - Word was completely skipped or not uttered
+        const isOmission =
+          (!wasRecognized && hasError && (!errorDetail?.actual || errorDetail.actual.trim() === "")) ||
+          (errorDetail?.phones && errorDetail.phones.length > 0 && errorDetail.phones.every((p) => !p.heard || p.heard.trim() === ""));
+
+        if (isOmission) {
+          omittedWordsCount++;
           return {
             word,
-            score: 35,
-            accuracyScore: 35,
+            score: 0,
+            accuracyScore: 0,
             errorType: "Omission" as const,
           };
         }
-        if (hasError) {
+
+        // Case B: Mispronunciation - Word was spoken but has phoneme defects
+        if (hasError && errorDetail) {
+          let wordAccuracy = 50;
+          if (Array.isArray(errorDetail.phones) && errorDetail.phones.length > 0) {
+            // Compute real word accuracy from individual phoneme error confidences
+            const sumAccuracy = errorDetail.phones.reduce((acc, p) => {
+              const conf = typeof p.confidence === "number" ? p.confidence : 1.0;
+              return acc + Math.max(0, 100 * (1 - conf));
+            }, 0);
+            wordAccuracy = Math.round(sumAccuracy / errorDetail.phones.length);
+          } else if (typeof errorDetail.confidence === "number") {
+            wordAccuracy = Math.round(Math.max(0, 100 * (1 - errorDetail.confidence)));
+          }
+
+          const score = Math.min(80, Math.max(25, wordAccuracy));
           return {
             word,
-            score: 55,
-            accuracyScore: 55,
+            score,
+            accuracyScore: score,
             errorType: "Mispronunciation" as const,
           };
         }
+
+        // Case C: None - Word was uttered accurately with correct phonemes
+        // High fidelity baseline (88-98) adjusted by global acoustic alignment
+        const acousticPenalty = Math.max(0, acousticDistance - 6.0) * 1.5;
+        const baseWordScore = Math.min(98, Math.max(88, Math.round(96 - acousticPenalty)));
         return {
           word,
-          score: Math.min(98, Math.max(80, overallScore + (word.length % 5))),
-          accuracyScore: Math.min(98, Math.max(80, accuracyScore + (word.length % 5))),
+          score: baseWordScore,
+          accuracyScore: baseWordScore,
           errorType: "None" as const,
         };
       });
+
+      // 4. Completeness: Proportion of target words uttered (100% when all words read, 0% when silent)
+      const completenessScore = targetWords.length > 0
+        ? Math.min(100, Math.max(0, Math.round(((targetWords.length - omittedWordsCount) / targetWords.length) * 100)))
+        : 100;
+
+      // 5. Fluency: Normalized DTW acoustic distance (Speechocean calibrated range: 6.0 to 15.0)
+      let fluencyScore = 0;
+      if (completenessScore > 0) {
+        const rawFluency = 100 * (1 - Math.max(0, acousticDistance - 6.0) / 9.0);
+        fluencyScore = Math.min(100, Math.max(0, Math.round(rawFluency)));
+      }
+
+      // 6. Overall PronScore: Azure Speech Standard weighting (40% Acc + 20% Flu + 20% Comp + 20% Pros)
+      const overallScore = Math.min(
+        100,
+        Math.max(
+          0,
+          Math.round(
+            accuracyScore * 0.4 +
+            fluencyScore * 0.2 +
+            completenessScore * 0.2 +
+            prosodyScore * 0.2
+          )
+        )
+      );
 
       return {
         pronScore: overallScore,
@@ -537,4 +644,29 @@ export function simulatePronAssessment(
     recognizedTranscript: userTranscript !== undefined ? userTranscript : referenceText,
     wordScores,
   };
+}
+
+/**
+ * Checks if the local OpenPronounce daemon is running and healthy
+ */
+export async function checkOpenPronounceHealth(): Promise<{ online: boolean; message: string; url: string }> {
+  const serviceUrl = process.env.OPENPRONOUNCE_URL || "http://127.0.0.1:8000";
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch(`${serviceUrl}/languages`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      return { online: true, message: "OpenPronounce engine is online & ready (Tier 1 Default)", url: serviceUrl };
+    }
+    return { online: false, message: `OpenPronounce returned status ${res.status}`, url: serviceUrl };
+  } catch (err: any) {
+    return {
+      online: false,
+      message: `OpenPronounce offline (${err.message || "ECONNREFUSED"}). Run 'npm run openpronounce:start'`,
+      url: serviceUrl,
+    };
+  }
 }

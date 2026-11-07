@@ -23,7 +23,7 @@ import tempfile
 
 import numpy as np
 
-DEFAULT_BACKEND = "gtts"
+DEFAULT_BACKEND = os.environ.get("OPENPRONOUNCE_TTS", "espeak")
 
 # Piper voices on Hugging Face (rhasspy/piper-voices), one medium-quality voice per language.
 PIPER_VOICES_REPO = "rhasspy/piper-voices"
@@ -75,27 +75,86 @@ def _import(module, extra):
         ) from e
 
 
+def espeak_default_voice(lang):
+    """Return the default espeak voice."""
+    mapping = {
+        "en": "en-us",
+        "es": "es",
+        "fr": "fr",
+        "de": "de",
+        "it": "it",
+        "pt": "pt-br",
+        "ru": "ru",
+        "zh": "cmn",
+    }
+    return mapping.get(lang, "en-us")
+
+
+def synthesize_espeak(text, lang, voice=None):
+    """Synthesize with espeak-ng (100% offline, zero network, ~50ms). Returns (waveform, sample_rate)."""
+    import shutil
+    import subprocess
+    import soundfile as sf
+    import librosa
+
+    espeak_bin = shutil.which("espeak-ng") or shutil.which("espeak") or "/data/thanhnd17/local_root/usr/bin/espeak-ng"
+    voice = voice or espeak_default_voice(lang)
+
+    fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="openpronounce-espeak-")
+    os.close(fd)
+    try:
+        env = os.environ.copy()
+        if "ESPEAK_DATA_PATH" not in env:
+            env["ESPEAK_DATA_PATH"] = "/data/thanhnd17/local_root/usr/lib/x86_64-linux-gnu/espeak-ng-data"
+        if "LD_LIBRARY_PATH" not in env:
+            env["LD_LIBRARY_PATH"] = "/data/thanhnd17/local_root/usr/lib/x86_64-linux-gnu:/data/thanhnd17/local_root/usr/lib/x86_64-linux-gnu/pulseaudio"
+        env["PULSE_SERVER"] = ""
+
+        res = subprocess.run(
+            [espeak_bin, "-w", wav_path, "-v", voice, text],
+            capture_output=True,
+            check=False,
+            env=env,
+        )
+        if res.returncode != 0 or not os.path.exists(wav_path) or os.path.getsize(wav_path) == 0:
+            raise RuntimeError(f"espeak-ng failed: {res.stderr.decode('utf-8', 'replace')}")
+
+        waveform, sr = sf.read(wav_path, dtype="float32")
+        if waveform.ndim > 1:
+            waveform = waveform.mean(axis=1)
+        return waveform, sr
+    finally:
+        try:
+            os.remove(wav_path)
+        except OSError:
+            pass
+
+
 def gtts_default_voice(lang):
     """Return the default gTTS "voice", i.e. the Google Translate domain."""
     return "com"
 
 
 def synthesize_gtts(text, lang, voice):
-    """Synthesize with Google Translate TTS (network). Returns ``(waveform, sample_rate)``."""
-    import librosa
-    from gtts import gTTS
-
-    fd, mp3_path = tempfile.mkstemp(suffix=".mp3", prefix="openpronounce-tts-")
-    os.close(fd)
+    """Synthesize with Google Translate TTS (network) with automatic offline espeak-ng fallback."""
     try:
-        gTTS(text=text, lang=lang, tld=voice, slow=False).save(mp3_path)
-        waveform, sr = librosa.load(mp3_path, sr=None, mono=True)
-    finally:
+        import librosa
+        from gtts import gTTS
+
+        fd, mp3_path = tempfile.mkstemp(suffix=".mp3", prefix="openpronounce-tts-")
+        os.close(fd)
         try:
-            os.remove(mp3_path)
-        except OSError:
-            pass
-    return waveform, sr
+            gTTS(text=text, lang=lang, tld=voice, slow=False).save(mp3_path)
+            waveform, sr = librosa.load(mp3_path, sr=None, mono=True)
+            return waveform, sr
+        finally:
+            try:
+                os.remove(mp3_path)
+            except OSError:
+                pass
+    except Exception as e:
+        logger.warning("gTTS failed or timed out (%s), falling back to offline espeak-ng", e)
+        return synthesize_espeak(text, lang)
 
 
 def piper_default_voice(lang):
@@ -176,6 +235,7 @@ def synthesize_kokoro(text, lang, voice):
 
 
 BACKENDS = {
+    "espeak": (synthesize_espeak, espeak_default_voice),
     "gtts": (synthesize_gtts, gtts_default_voice),
     "piper": (synthesize_piper, piper_default_voice),
     "kokoro": (synthesize_kokoro, kokoro_default_voice),

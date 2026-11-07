@@ -62,6 +62,14 @@ export default function SpeakingStudioPage() {
   const [userSentence, setUserSentence] = useState("");
   const [scores, setScores] = useState<PronScoreResult | null>(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const [engineStatus, setEngineStatus] = useState<{ online: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/speech/health")
+      .then((res) => res.json())
+      .then((data) => setEngineStatus(data))
+      .catch(() => setEngineStatus({ online: false, message: "Không thể kết nối API" }));
+  }, []);
 
   useEffect(() => {
     const allCards = getLocalCards();
@@ -199,8 +207,32 @@ export default function SpeakingStudioPage() {
           </p>
         </div>
 
-        {/* Quick Test Mic Action */}
-        <div>
+        {/* Actions: Engine Status & Mic Test */}
+        <div className="flex flex-wrap items-center gap-3">
+          {engineStatus && (
+            <div
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-semibold border transition-all",
+                engineStatus.online
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
+                  : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800"
+              )}
+              title={engineStatus.message}
+            >
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  engineStatus.online ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                )}
+              />
+              <span>
+                {engineStatus.online
+                  ? "OpenPronounce: Sẵn sàng (Local AI)"
+                  : "OpenPronounce: Offline"}
+              </span>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => setIsMicTestOpen(true)}
