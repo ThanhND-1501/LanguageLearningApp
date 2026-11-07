@@ -177,7 +177,7 @@ export async function pullFromCloud(): Promise<SyncResult> {
     if (deckErr) throw deckErr;
 
     // 2. Fetch cloud cards
-    const { data: cloudCardsRaw, error: cardErr } = await supabase.from("cards").select("*").limit(5000);
+    const { data: cloudCardsRaw, error: cardErr } = await supabase.from("cards").select("*").limit(15000);
     if (cardErr) throw cardErr;
 
     const cloudDecks: Deck[] = (cloudDecksRaw || []).map(mapDbToDeck);
