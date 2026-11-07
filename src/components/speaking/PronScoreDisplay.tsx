@@ -1,12 +1,13 @@
 import { PronScoreResult } from "@/types";
 import { getScoreBadgeColor } from "@/lib/utils";
-import { Award, CheckCircle2, TrendingUp, Volume2, Mic } from "lucide-react";
+import { Award, Volume2, HardDrive, Clock, CheckCircle2 } from "lucide-react";
 
 interface PronScoreDisplayProps {
   scores: PronScoreResult;
+  audioUrl?: string | null;
 }
 
-export function PronScoreDisplay({ scores }: PronScoreDisplayProps) {
+export function PronScoreDisplay({ scores, audioUrl }: PronScoreDisplayProps) {
   const badgeInfo = getScoreBadgeColor(scores.pronScore);
 
   const metrics = [
@@ -28,7 +29,7 @@ export function PronScoreDisplay({ scores }: PronScoreDisplayProps) {
             </h4>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Phân tích 4 chiều theo chuẩn Azure AI Speech Assessment
+            Phân tích 4 chiều âm học chuẩn xác bằng Trí tuệ Nhân tạo
           </p>
         </div>
 
@@ -43,6 +44,63 @@ export function PronScoreDisplay({ scores }: PronScoreDisplayProps) {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Audio Playback Player */}
+      {audioUrl && (
+        <div className="mt-5 p-3.5 rounded-xl bg-slate-50 border border-slate-200 dark:bg-slate-800/40 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Volume2 className="h-4 w-4 text-brand-600 shrink-0" />
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+              Nghe lại bản thu âm của bạn:
+            </span>
+          </div>
+          <audio controls src={audioUrl} className="h-8 w-full sm:w-72 rounded-lg" />
+        </div>
+      )}
+
+      {/* AI Telemetry & Verification Panel */}
+      <div className="mt-4 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-emerald-100 dark:border-emerald-900/40">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="font-semibold text-emerald-900 dark:text-emerald-300">
+              Xác thực AI chấm điểm:
+            </span>
+            <span className="font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/60 px-2 py-0.5 rounded-md">
+              {scores.provider || "Google Gemini 2.5 Flash Audio"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+            {typeof scores.audioSizeBytes === "number" && scores.audioSizeBytes > 0 && (
+              <span className="flex items-center gap-1">
+                <HardDrive className="h-3 w-3" />
+                {(scores.audioSizeBytes / 1024).toFixed(1)} KB
+              </span>
+            )}
+            {typeof scores.latencyMs === "number" && scores.latencyMs > 0 && (
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {(scores.latencyMs / 1000).toFixed(2)}s
+              </span>
+            )}
+          </div>
+        </div>
+
+        {scores.recognizedTranscript && (
+          <div className="mt-2.5">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+              Văn bản AI nghe thấy từ giọng bạn:
+            </span>
+            <div className="p-2.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-emerald-200/60 dark:border-emerald-900/40 text-slate-800 dark:text-slate-200 font-medium italic">
+              &ldquo;{scores.recognizedTranscript}&rdquo;
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 4 Metric Progress Bars */}

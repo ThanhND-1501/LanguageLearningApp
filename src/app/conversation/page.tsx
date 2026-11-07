@@ -85,33 +85,30 @@ export default function ConversationPage() {
     setIsTyping(true);
 
     try {
-      // Simulate/call Gemini roleplay response
-      const prompt = `
-Bạn là ${selectedScenario.aiPersona} trong kịch bản "${selectedScenario.title}".
-Lịch sử hội thoại:
-${messages.map((m) => `${m.role}: ${m.content}`).join("\n")}
-user: ${userText}
-
-Nhiệm vụ:
-Đáp lại câu trả lời của user bằng tiếng Anh tự nhiên (2-3 câu), thể hiện sự thấu hiểu câu trả lời và đặt thêm một câu hỏi tiếp nối để kích thích hội thoại.
-`;
-
-      const aiRes = await fetch("/api/ai/check-grammar", {
+      // 1. Call real AI Roleplay Conversation API (Gemini 2.5 Flash with Groq failover)
+      const convoRes = await fetch("/api/ai/conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          scenarioTitle: selectedScenario.title,
+          aiPersona: selectedScenario.aiPersona,
           targetWords: selectedScenario.targetWords,
-          userSentence: userText,
-          promptQuestion: selectedScenario.title,
+          usedWords: updatedUsedWords,
+          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          userMessage: userText,
         }),
       });
 
-      let aiReply = "That's a very clear explanation. How do you envision maintaining this progress moving forward?";
-      if (aiRes.ok) {
-        const data = await aiRes.json();
-        if (data.evaluation?.naturalRewrite) {
-          aiReply = `Great response! To build upon what you said about '${newlyUsed.join(", ") || "that"}', what would be the next step your team should prioritize?`;
+      let aiReply = "";
+      if (convoRes.ok) {
+        const convoData = await convoRes.json();
+        if (convoData.reply) {
+          aiReply = convoData.reply;
         }
+      }
+
+      if (!aiReply) {
+        aiReply = `Great response! To build upon what you said about '${newlyUsed.join(", ") || "that"}', what would be the next step your team should prioritize?`;
       }
 
       const botMsg: ConversationMessage = {
