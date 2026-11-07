@@ -36,6 +36,8 @@ export function mapDbToDeck(row: any): Deck {
     totalCards: row.total_cards || 0,
     createdAt: row.created_at || new Date().toISOString(),
     updatedAt: row.updated_at,
+    isGlobal: row.is_public ?? true,
+    ownerId: row.is_public ? "system" : "user",
   };
 }
 
@@ -171,11 +173,11 @@ export async function pullFromCloud(): Promise<SyncResult> {
 
   try {
     // 1. Fetch cloud decks
-    const { data: cloudDecksRaw, error: deckErr } = await supabase.from("decks").select("*");
+    const { data: cloudDecksRaw, error: deckErr } = await supabase.from("decks").select("*").limit(500);
     if (deckErr) throw deckErr;
 
     // 2. Fetch cloud cards
-    const { data: cloudCardsRaw, error: cardErr } = await supabase.from("cards").select("*");
+    const { data: cloudCardsRaw, error: cardErr } = await supabase.from("cards").select("*").limit(5000);
     if (cardErr) throw cardErr;
 
     const cloudDecks: Deck[] = (cloudDecksRaw || []).map(mapDbToDeck);
