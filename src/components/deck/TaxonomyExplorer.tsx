@@ -10,7 +10,7 @@ import {
   TopicType,
   CefrLevel,
   filterDecksByTaxonomy,
-  getTaxonomyCounts,
+  getCascadingTaxonomyCounts,
   classifyDeck,
 } from "@/lib/taxonomy";
 import { DeckCard } from "./DeckCard";
@@ -101,11 +101,36 @@ export function TaxonomyExplorer({
     }
   };
 
-  // Compute counts
+  // Compute dynamic cascading counts:
+  // - Exam counts: across all decks
+  // - Topic counts: filtered by selectedExam
+  // - Level counts: filtered by selectedExam AND selectedTopic
   const { examCounts, topicCounts, levelCounts } = useMemo(
-    () => getTaxonomyCounts(decks),
-    [decks]
+    () => getCascadingTaxonomyCounts(decks, selectedExam, selectedTopic),
+    [decks, selectedExam, selectedTopic]
   );
+
+  const handleSelectExam = (exam: ExamType) => {
+    setSelectedExam(exam);
+    // If the currently selected topic has 0 cards in the newly selected exam, reset topic to "all"
+    if (selectedTopic !== "all") {
+      const countsInNewExam = getCascadingTaxonomyCounts(decks, exam, "all");
+      if ((countsInNewExam.topicCounts[selectedTopic]?.cards || 0) === 0) {
+        setSelectedTopic("all");
+      }
+    }
+  };
+
+  const handleSelectTopic = (topic: TopicType) => {
+    setSelectedTopic(topic);
+    // If the currently selected level has 0 cards in the newly selected (exam, topic), reset level to "all"
+    if (selectedLevel !== "all") {
+      const countsInNewTopic = getCascadingTaxonomyCounts(decks, selectedExam, topic);
+      if ((countsInNewTopic.levelCounts[selectedLevel]?.cards || 0) === 0) {
+        setSelectedLevel("all");
+      }
+    }
+  };
 
   // Filtered decks
   const filteredDecks = useMemo(() => {
@@ -157,14 +182,12 @@ export function TaxonomyExplorer({
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
           {EXAM_TYPES.map((exam) => {
             const isSelected = selectedExam === exam.id;
-            const stats = exam.id === "all"
-              ? { decks: decks.length, cards: decks.reduce((s, d) => s + (d.totalCards || 0), 0) }
-              : examCounts[exam.id] || { decks: 0, cards: 0 };
+            const stats = examCounts[exam.id] || { decks: 0, cards: 0 };
 
             return (
               <button
                 key={exam.id}
-                onClick={() => setSelectedExam(exam.id)}
+                onClick={() => handleSelectExam(exam.id)}
                 className={`relative flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
                   isSelected
                     ? "border-brand-600 bg-brand-50/70 text-brand-900 dark:bg-brand-950/40 dark:border-brand-500 dark:text-brand-200 shadow-xs ring-1 ring-brand-500/30"
@@ -207,6 +230,11 @@ export function TaxonomyExplorer({
             <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
               Chọn Chủ đề (Topic)
             </h3>
+            {selectedExam !== "all" && (
+              <span className="text-xs font-semibold px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 rounded-md">
+                trong {EXAM_TYPES.find((e) => e.id === selectedExam)?.shortLabel}
+              </span>
+            )}
           </div>
           {selectedTopic !== "all" && (
             <button
@@ -221,17 +249,18 @@ export function TaxonomyExplorer({
         <div className="flex flex-wrap items-center gap-2">
           {TOPICS.map((top) => {
             const isSelected = selectedTopic === top.id;
-            const stats = top.id === "all"
-              ? { decks: decks.length, cards: decks.reduce((s, d) => s + (d.totalCards || 0), 0) }
-              : topicCounts[top.id] || { decks: 0, cards: 0 };
+            const stats = topicCounts[top.id] || { decks: 0, cards: 0 };
+            const isZero = stats.cards === 0 && top.id !== "all";
 
             return (
               <button
                 key={top.id}
-                onClick={() => setSelectedTopic(top.id)}
+                onClick={() => handleSelectTopic(top.id)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
                   isSelected
                     ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white shadow-xs"
+                    : isZero
+                    ? "bg-slate-50/40 dark:bg-slate-900/30 border-slate-200/50 dark:border-slate-800/50 text-slate-400 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 opacity-60"
                     : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
@@ -241,6 +270,8 @@ export function TaxonomyExplorer({
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${
                     isSelected
                       ? "bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900"
+                      : isZero
+                      ? "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600"
                       : "bg-slate-200/70 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
                   }`}
                 >
@@ -264,6 +295,11 @@ export function TaxonomyExplorer({
             <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
               Chọn Cấp độ Trình độ (CEFR Level)
             </h3>
+            {(selectedExam !== "all" || selectedTopic !== "all") && (
+              <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-md">
+                theo bộ lọc hiện tại
+              </span>
+            )}
           </div>
           <span className="text-xs text-slate-500">Khung chuẩn Châu Âu</span>
         </div>
@@ -271,9 +307,8 @@ export function TaxonomyExplorer({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {CEFR_LEVELS.map((lvl) => {
             const isSelected = selectedLevel === lvl.id;
-            const stats = lvl.id === "all"
-              ? { decks: decks.length, cards: decks.reduce((s, d) => s + (d.totalCards || 0), 0) }
-              : levelCounts[lvl.id] || { decks: 0, cards: 0 };
+            const stats = levelCounts[lvl.id] || { decks: 0, cards: 0 };
+            const isZero = stats.cards === 0 && lvl.id !== "all";
 
             return (
               <button
@@ -282,6 +317,8 @@ export function TaxonomyExplorer({
                 className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
                   isSelected
                     ? "border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40 dark:border-emerald-500 ring-1 ring-emerald-500/30"
+                    : isZero
+                    ? "border-slate-200/60 dark:border-slate-800/60 bg-slate-50/30 dark:bg-slate-900/30 opacity-60 hover:opacity-100"
                     : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
@@ -299,7 +336,7 @@ export function TaxonomyExplorer({
                     <span className="text-xs font-bold text-slate-900 dark:text-white">
                       {lvl.label}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-500">
+                    <span className={`text-[10px] font-bold ${isZero ? "text-slate-400" : "text-slate-500"}`}>
                       {stats.cards.toLocaleString()} từ
                     </span>
                   </div>

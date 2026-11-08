@@ -454,32 +454,80 @@ export function filterDecksByTaxonomy(
 }
 
 /**
- * Calculate card and deck counts for all taxonomy combinations
+ * Calculate dynamic cascading counts:
+ * - examCounts: aggregated across all decks
+ * - topicCounts: aggregated across decks filtered by selectedExam
+ * - levelCounts: aggregated across decks filtered by selectedExam AND selectedTopic
  */
-export function getTaxonomyCounts(decks: Deck[]) {
+export function getCascadingTaxonomyCounts(
+  decks: Deck[],
+  selectedExam: ExamType = "all",
+  selectedTopic: TopicType = "all"
+) {
+  // 1. Exam counts (across all decks)
   const examCounts: Record<string, { decks: number; cards: number }> = {};
-  const topicCounts: Record<string, { decks: number; cards: number }> = {};
-  const levelCounts: Record<string, { decks: number; cards: number }> = {};
+  let totalAllCards = 0;
 
   decks.forEach((deck) => {
-    const { examType, topic, level } = classifyDeck(deck);
+    const { examType } = classifyDeck(deck);
     const cards = deck.totalCards || 0;
+    totalAllCards += cards;
 
-    // Exam
     if (!examCounts[examType]) examCounts[examType] = { decks: 0, cards: 0 };
     examCounts[examType].decks += 1;
     examCounts[examType].cards += cards;
+  });
+  examCounts["all"] = { decks: decks.length, cards: totalAllCards };
 
-    // Topic
+  // 2. Filter decks by selectedExam for Topic counts
+  const decksInExam =
+    selectedExam === "all"
+      ? decks
+      : decks.filter((d) => classifyDeck(d).examType === selectedExam);
+
+  const topicCounts: Record<string, { decks: number; cards: number }> = {};
+  let examCardsTotal = 0;
+
+  decksInExam.forEach((deck) => {
+    const { topic } = classifyDeck(deck);
+    const cards = deck.totalCards || 0;
+    examCardsTotal += cards;
+
     if (!topicCounts[topic]) topicCounts[topic] = { decks: 0, cards: 0 };
     topicCounts[topic].decks += 1;
     topicCounts[topic].cards += cards;
+  });
+  topicCounts["all"] = { decks: decksInExam.length, cards: examCardsTotal };
 
-    // Level
+  // 3. Filter decks by selectedExam AND selectedTopic for Level counts
+  const decksInExamAndTopic =
+    selectedTopic === "all"
+      ? decksInExam
+      : decksInExam.filter((d) => classifyDeck(d).topic === selectedTopic);
+
+  const levelCounts: Record<string, { decks: number; cards: number }> = {};
+  let examAndTopicCardsTotal = 0;
+
+  decksInExamAndTopic.forEach((deck) => {
+    const { level } = classifyDeck(deck);
+    const cards = deck.totalCards || 0;
+    examAndTopicCardsTotal += cards;
+
     if (!levelCounts[level]) levelCounts[level] = { decks: 0, cards: 0 };
     levelCounts[level].decks += 1;
     levelCounts[level].cards += cards;
   });
+  levelCounts["all"] = {
+    decks: decksInExamAndTopic.length,
+    cards: examAndTopicCardsTotal,
+  };
 
   return { examCounts, topicCounts, levelCounts };
+}
+
+/**
+ * Calculate card and deck counts for all taxonomy combinations (Static)
+ */
+export function getTaxonomyCounts(decks: Deck[]) {
+  return getCascadingTaxonomyCounts(decks, "all", "all");
 }
