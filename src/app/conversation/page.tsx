@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { RoleplayScenario, ConversationMessage } from "@/types";
+import { useState, useEffect } from "react";
+import { RoleplayScenario, ConversationMessage, UserProfile } from "@/types";
+import { getActiveUser } from "@/lib/auth";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import { playNativePronunciation } from "@/lib/audio";
 import {
   MessageSquare,
@@ -34,6 +36,9 @@ const SCENARIOS: RoleplayScenario[] = [
 ];
 
 export default function ConversationPage() {
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
   const [selectedScenario, setSelectedScenario] = useState<RoleplayScenario>(SCENARIOS[0]);
   const [messages, setMessages] = useState<ConversationMessage[]>([
     {
@@ -46,6 +51,12 @@ export default function ConversationPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [usedWords, setUsedWords] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    const user = getActiveUser();
+    setCurrentUser(user);
+    setIsAuthChecking(false);
+  }, []);
 
   const handleSelectScenario = (sc: RoleplayScenario) => {
     setSelectedScenario(sc);
@@ -126,6 +137,18 @@ export default function ConversationPage() {
       setIsTyping(false);
     }
   };
+
+  if (!isAuthChecking && !currentUser) {
+    return (
+      <AuthGuard
+        featureName="Hội Thoại AI Roleplay"
+        title="Đăng nhập để trò chuyện với AI"
+        description="Tính năng đối thoại nhập vai ngữ cảnh thực tế với gia sư ảo AI yêu cầu đăng nhập để ghi nhớ lịch sử hội thoại và phân tích ngữ pháp."
+        backHref="/decks"
+        backLabel="Khám phá bộ từ vựng"
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">

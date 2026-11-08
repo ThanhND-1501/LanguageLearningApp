@@ -29,8 +29,9 @@ import {
   getUserActivities,
   updateUserProfile,
   logoutUser,
-  loginDemoUser,
+  syncSupabaseSessionToLocalUser,
 } from "@/lib/auth";
+import { isSupabaseConfigured, getSessionUser } from "@/lib/supabase";
 import { getLocalCards, getLocalDecks } from "@/lib/storage";
 import { UserProfile, UserPersonalStats, StudyActivity, TargetProficiencyLevel } from "@/types";
 
@@ -48,19 +49,34 @@ export default function ProfilePage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    let currentUser = getActiveUser();
-    if (!currentUser) {
-      // Auto-assign guest/demo profile if not signed in yet
-      currentUser = loginDemoUser();
-    }
-    setUser(currentUser);
-    setEditName(currentUser.name);
-    setEditLevel(currentUser.targetLevel);
-    setEditGoal(currentUser.dailyGoalCards || 15);
+    const applyUser = (u: UserProfile) => {
+      setUser(u);
+      setEditName(u.name);
+      setEditLevel(u.targetLevel);
+      setEditGoal(u.dailyGoalCards || 15);
+      setStats(getUserPersonalStats(u.id));
+      setActivities(getUserActivities(u.id));
+    };
 
-    setStats(getUserPersonalStats(currentUser.id));
-    setActivities(getUserActivities(currentUser.id));
-  }, []);
+    if (isSupabaseConfigured()) {
+      getSessionUser().then((sbUser) => {
+        if (sbUser && sbUser.email) {
+          const synced = syncSupabaseSessionToLocalUser(sbUser);
+          applyUser(synced);
+        } else {
+          // No active Supabase session -> redirect to unified login page
+          router.push("/login");
+        }
+      });
+    } else {
+      const currentUser = getActiveUser();
+      if (currentUser) {
+        applyUser(currentUser);
+      } else {
+        router.push("/login");
+      }
+    }
+  }, [router]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();

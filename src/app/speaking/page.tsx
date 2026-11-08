@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Card, PronScoreResult } from "@/types";
+import { Card, PronScoreResult, UserProfile } from "@/types";
 import { getLocalCards } from "@/lib/storage";
+import { getActiveUser } from "@/lib/auth";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import {
   BrowserAudioRecorder,
   playNativePronunciation,
@@ -45,6 +47,9 @@ function highlightTerm(sentence: string, term: string) {
 }
 
 export default function SpeakingStudioPage() {
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
@@ -63,6 +68,12 @@ export default function SpeakingStudioPage() {
   const [scores, setScores] = useState<PronScoreResult | null>(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [engineStatus, setEngineStatus] = useState<{ online: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    const user = getActiveUser();
+    setCurrentUser(user);
+    setIsAuthChecking(false);
+  }, []);
 
   useEffect(() => {
     fetch("/api/speech/health")
@@ -189,6 +200,18 @@ export default function SpeakingStudioPage() {
       setIsEvaluating(false);
     }
   };
+
+  if (!isAuthChecking && !currentUser) {
+    return (
+      <AuthGuard
+        featureName="Phòng Luyện Phản Xạ Nói"
+        title="Đăng nhập để luyện phản xạ nói"
+        description="Tính năng ghi âm và chấm điểm phát âm 4 chiều PronScore™ yêu cầu tài khoản để lưu lại lịch sử phát âm và phân tích tiến độ học tập."
+        backHref="/decks"
+        backLabel="Khám phá bộ từ vựng"
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">

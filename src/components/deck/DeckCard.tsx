@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Clock, Play, Sparkles, Check, Globe, Plus } from "lucide-react";
+import { Clock, Play, Globe, Plus } from "lucide-react";
 import { Deck, Card } from "@/types";
 
 interface DeckCardProps {
@@ -7,9 +7,17 @@ interface DeckCardProps {
   cards: Card[];
   isEnrolled?: boolean;
   onEnroll?: () => void;
+  isLoggedIn?: boolean;
 }
 
-export function DeckCard({ deck, cards, isEnrolled = true, onEnroll }: DeckCardProps) {
+export function DeckCard({
+  deck,
+  cards,
+  isEnrolled = true,
+  onEnroll,
+  isLoggedIn = false,
+}: DeckCardProps) {
+  const displayTotal = deck.totalCards && deck.totalCards > 0 ? deck.totalCards : cards.length;
   const newCards = cards.filter((c) => c.status === "new").length;
   const learningCards = cards.filter((c) => c.status === "learning").length;
   const masteredCards = cards.filter((c) => c.status === "mastered").length;
@@ -43,7 +51,7 @@ export function DeckCard({ deck, cards, isEnrolled = true, onEnroll }: DeckCardP
             </span>
           ))}
 
-          {isEnrolled && dueCards > 0 && (
+          {isLoggedIn && isEnrolled && dueCards > 0 && (
             <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
               <Clock className="h-3 w-3" />
               {dueCards} cần ôn
@@ -52,7 +60,7 @@ export function DeckCard({ deck, cards, isEnrolled = true, onEnroll }: DeckCardP
         </div>
 
         {/* Title & Description */}
-        <Link href={`/decks/${deck.id}`}>
+        <Link href={isLoggedIn ? `/decks/${deck.id}` : "/login"}>
           <h3 className="text-lg font-bold text-slate-900 hover:text-brand-600 transition-colors dark:text-white">
             {deck.title}
           </h3>
@@ -61,73 +69,98 @@ export function DeckCard({ deck, cards, isEnrolled = true, onEnroll }: DeckCardP
           {deck.description}
         </p>
 
-        {/* Learning progress bar */}
-        <div className="mt-5">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 font-medium">
-            <span>Tiến độ ghi nhớ</span>
-            <span>{isEnrolled ? `${masteryPercent}%` : `${cards.length} thẻ chuẩn`}</span>
-          </div>
-          <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden flex dark:bg-slate-800">
-            <div
-              className="bg-emerald-500 transition-all"
-              style={{ width: `${(masteredCards / (cards.length || 1)) * 100}%` }}
-              title={`Mastered: ${masteredCards}`}
-            />
-            <div
-              className="bg-amber-400 transition-all"
-              style={{ width: `${(learningCards / (cards.length || 1)) * 100}%` }}
-              title={`Learning: ${learningCards}`}
-            />
-            <div
-              className="bg-slate-300 dark:bg-slate-700 transition-all"
-              style={{ width: `${(newCards / (cards.length || 1)) * 100}%` }}
-              title={`New: ${newCards}`}
-            />
-          </div>
+        {/* Learning progress bar - only shown for logged in users */}
+        {isLoggedIn ? (
+          <div className="mt-5">
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 font-medium">
+              <span>Tiến độ ghi nhớ</span>
+              <span>{isEnrolled && cards.length > 0 ? `${masteryPercent}%` : `${displayTotal} thẻ chuẩn`}</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden flex dark:bg-slate-800">
+              <div
+                className="bg-emerald-500 transition-all"
+                style={{ width: `${(masteredCards / (cards.length || 1)) * 100}%` }}
+                title={`Mastered: ${masteredCards}`}
+              />
+              <div
+                className="bg-amber-400 transition-all"
+                style={{ width: `${(learningCards / (cards.length || 1)) * 100}%` }}
+                title={`Learning: ${learningCards}`}
+              />
+              <div
+                className="bg-slate-300 dark:bg-slate-700 transition-all"
+                style={{ width: `${cards.length > 0 ? (newCards / (cards.length || 1)) * 100 : 100}%` }}
+                title={`New: ${cards.length > 0 ? newCards : displayTotal}`}
+              />
+            </div>
 
-          <div className="mt-3 flex items-center gap-3 text-xs text-slate-500">
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-700" />
-              {newCards} mới
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-amber-400" />
-              {learningCards} đang học
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {masteredCards} đã thuộc
-            </span>
+            <div className="mt-3 flex items-center gap-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-700" />
+                {cards.length > 0 ? newCards : displayTotal} mới
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-amber-400" />
+                {learningCards} đang học
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                {masteredCards} đã thuộc
+              </span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="mt-5">
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-2 font-medium">
+              <span>Quy mô bộ từ</span>
+              <span className="font-semibold text-brand-600 dark:text-brand-400">{displayTotal} thẻ chuẩn</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+              <div className="bg-brand-500/25 h-full w-full rounded-full" />
+            </div>
+            <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
+              <span>Đăng nhập để xem danh sách từ và bắt đầu học</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Action buttons */}
       <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3">
         <Link
-          href={`/decks/${deck.id}`}
+          href={isLoggedIn ? `/decks/${deck.id}` : "/login"}
           className="text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
         >
-          Xem chi tiết ({cards.length} thẻ)
+          Xem chi tiết ({displayTotal} thẻ)
         </Link>
 
-        {isEnrolled ? (
+        {isLoggedIn ? (
+          isEnrolled ? (
+            <Link
+              href={`/study/${deck.id}`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 transition-colors shadow-sm"
+            >
+              <Play className="h-3.5 w-3.5 fill-white" />
+              Học ngay
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={onEnroll}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 transition-colors shadow-sm"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Đăng ký học bộ này
+            </button>
+          )
+        ) : (
           <Link
-            href={`/study/${deck.id}`}
+            href="/login"
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 transition-colors shadow-sm"
           >
             <Play className="h-3.5 w-3.5 fill-white" />
-            Học ngay
+            Đăng nhập để học
           </Link>
-        ) : (
-          <button
-            type="button"
-            onClick={onEnroll}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 transition-colors shadow-sm"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Đăng ký học bộ này
-          </button>
         )}
       </div>
     </div>

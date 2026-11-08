@@ -12,7 +12,13 @@ import {
   Card,
   Deck,
 } from "@/types";
-import { isSupabaseConfigured, getSupabase, signOut as supabaseSignOut } from "./supabase";
+import {
+  isSupabaseConfigured,
+  getSupabase,
+  signOut as supabaseSignOut,
+  signInWithEmail,
+  signUpWithEmail,
+} from "./supabase";
 import { getLocalCards, getLocalDecks } from "./storage";
 
 const ACCOUNTS_STORAGE_KEY = "lingopulse_accounts_v1";
@@ -233,11 +239,118 @@ export async function loginLocalUser(email: string, password: string): Promise<U
 }
 
 /**
+ * Unified Cloud Login (Supabase Cloud primary, with local fallback for testing)
+ */
+export async function loginUser(email: string, password: string): Promise<UserProfile> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await signInWithEmail(email, password);
+    if (error) {
+      throw new Error(error.message || "Đăng nhập thất bại");
+    }
+    if (!data.user) {
+      throw new Error("Không tìm thấy thông tin tài khoản");
+    }
+    return syncSupabaseSessionToLocalUser(data.user);
+  }
+  return loginLocalUser(email, password);
+}
+
+/**
+ * Unified Cloud Registration (Supabase Cloud primary, with local fallback for testing)
+ */
+export async function registerUser(
+  name: string,
+  email: string,
+  password: string,
+  targetLevel: TargetProficiencyLevel = "IELTS 6.5"
+): Promise<UserProfile> {
+  if (isSupabaseConfigured()) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+    if (!cleanName) throw new Error("Vui lòng nhập tên hiển thị");
+    if (!cleanEmail || !cleanEmail.includes("@")) throw new Error("Địa chỉ email không hợp lệ");
+    if (!password || password.length < 6) throw new Error("Mật khẩu phải chứa ít nhất 6 ký tự");
+
+    const { data, error } = await signUpWithEmail(cleanEmail, password, {
+      name: cleanName,
+      full_name: cleanName,
+      target_level: targetLevel,
+    });
+    if (error) {
+      throw new Error(error.message || "Đăng ký thất bại");
+    }
+    if (!data.user) {
+      throw new Error("Tài khoản đã tạo thành công! Kiểm tra email để xác nhận.");
+    }
+    const profile = syncSupabaseSessionToLocalUser(data.user);
+    profile.name = cleanName;
+    profile.targetLevel = targetLevel;
+    setActiveUser(profile);
+    return profile;
+  }
+  return registerLocalUser(name, email, password, targetLevel);
+}
+
+/**
  * Instant 1-click Demo/Guest login for evaluation
  */
 export function loginDemoUser(): UserProfile {
   setActiveUser(DEMO_USER);
   return DEMO_USER;
+}
+
+/**
+ * Automatically bridges an authenticated Supabase user session to a local UserProfile
+ */
+export function syncSupabaseSessionToLocalUser(supabaseUser: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, any>;
+}): UserProfile {
+  const email = (supabaseUser.email || "").trim().toLowerCase();
+  const name =
+    supabaseUser.user_metadata?.full_name ||
+    supabaseUser.user_metadata?.name ||
+    (email ? email.split("@")[0] : "Learner");
+
+  const accounts = getStoredAccounts();
+  const existingIndex = accounts.findIndex((a) => a.email === email);
+
+  let profile: UserProfile;
+
+  if (existingIndex !== -1) {
+    profile = {
+      ...accounts[existingIndex].profile,
+      isCloudSynced: true,
+      email,
+      name: accounts[existingIndex].profile.name || name,
+    };
+    accounts[existingIndex].profile = profile;
+    saveStoredAccounts(accounts);
+  } else {
+    profile = {
+      id: supabaseUser.id || `user-${Date.now()}`,
+      email,
+      name,
+      targetLevel: "IELTS 7.5+",
+      dailyGoalCards: 15,
+      streakDays: 1,
+      lastActiveDate: new Date().toISOString().split("T")[0],
+      createdAt: new Date().toISOString(),
+      isCloudSynced: true,
+      enrolledDeckIds: [],
+    };
+    accounts.push({
+      id: profile.id,
+      email,
+      passwordHash: "supabase-cloud-auth",
+      profile,
+    });
+    saveStoredAccounts(accounts);
+  }
+
+  setActiveUser(profile);
+  return profile;
 }
 
 /**
