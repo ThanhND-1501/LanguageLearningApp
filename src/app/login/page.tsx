@@ -71,12 +71,12 @@ export default function LoginPage() {
         const user = await loginUser(email, password);
         setCurrentUser(user);
         setSuccessMessage(`Chào mừng bạn trở lại, ${user.name}!`);
-        setTimeout(() => router.push("/profile"), 700);
+        setTimeout(() => router.push("/home"), 700);
       } else {
         const user = await registerUser(name, email, password, targetLevel);
         setCurrentUser(user);
         setSuccessMessage(`Đăng ký tài khoản thành công! Chào mừng ${user.name}.`);
-        setTimeout(() => router.push("/profile"), 700);
+        setTimeout(() => router.push("/home"), 700);
       }
     } catch (err: any) {
       setErrorMessage(err.message || "Xác thực không thành công.");
@@ -174,18 +174,24 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 max-w-sm mx-auto">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 max-w-md mx-auto">
                 <Link
-                  href="/profile"
+                  href="/home"
                   className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-md shadow-brand-500/20 transition-all"
                 >
                   <Compass className="h-4 w-4" />
-                  <span>Vào Trang Hồ Sơ</span>
+                  <span>Vào Bảng Học Tập</span>
+                </Link>
+                <Link
+                  href="/profile"
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold transition-colors"
+                >
+                  Hồ sơ cá nhân
                 </Link>
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-50 text-sm font-semibold transition-colors"
+                  className="w-full sm:w-auto px-4 py-3 rounded-xl border border-transparent text-slate-500 hover:text-rose-600 hover:bg-rose-50 text-sm font-semibold transition-colors"
                 >
                   Đăng xuất
                 </button>
