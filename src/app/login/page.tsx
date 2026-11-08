@@ -19,12 +19,12 @@ import {
 } from "lucide-react";
 import {
   getActiveUser,
-  loginLocalUser,
-  registerLocalUser,
-  loginDemoUser,
+  loginUser,
+  registerUser,
   logoutUser,
+  syncSupabaseSessionToLocalUser,
 } from "@/lib/auth";
-import { isSupabaseConfigured, signInWithOAuth } from "@/lib/supabase";
+import { isSupabaseConfigured, signInWithOAuth, getSessionUser } from "@/lib/supabase";
 import { TargetProficiencyLevel, UserProfile } from "@/types";
 
 export default function LoginPage() {
@@ -45,8 +45,19 @@ export default function LoginPage() {
   const isCloudAvailable = isSupabaseConfigured();
 
   useEffect(() => {
-    const user = getActiveUser();
-    setCurrentUser(user);
+    if (isSupabaseConfigured()) {
+      getSessionUser().then((sbUser) => {
+        if (sbUser) {
+          const synced = syncSupabaseSessionToLocalUser(sbUser);
+          setCurrentUser(synced);
+        } else {
+          setCurrentUser(null);
+        }
+      });
+    } else {
+      const user = getActiveUser();
+      setCurrentUser(user);
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,12 +68,12 @@ export default function LoginPage() {
 
     try {
       if (mode === "signin") {
-        const user = await loginLocalUser(email, password);
+        const user = await loginUser(email, password);
         setCurrentUser(user);
         setSuccessMessage(`Chào mừng bạn trở lại, ${user.name}!`);
         setTimeout(() => router.push("/profile"), 700);
       } else {
-        const user = await registerLocalUser(name, email, password, targetLevel);
+        const user = await registerUser(name, email, password, targetLevel);
         setCurrentUser(user);
         setSuccessMessage(`Đăng ký tài khoản thành công! Chào mừng ${user.name}.`);
         setTimeout(() => router.push("/profile"), 700);
@@ -72,15 +83,6 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDemoLogin = () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    const demo = loginDemoUser();
-    setCurrentUser(demo);
-    setSuccessMessage(`Đã đăng nhập tài khoản Demo: ${demo.name}!`);
-    setTimeout(() => router.push("/profile"), 600);
   };
 
   const handleOAuthLogin = async (provider: "google" | "github") => {
@@ -335,37 +337,33 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {/* Quick 1-Click Demo Account */}
-              <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                <button
-                  type="button"
-                  onClick={handleDemoLogin}
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100/80 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200 transition-colors shadow-xs"
-                >
-                  <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  <span>Dùng thử 1-Click với Tài khoản Demo (Không cần tạo form)</span>
-                </button>
+              {/* OAuth Providers */}
+              {isCloudAvailable && (
+                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="relative flex items-center justify-center">
+                    <span className="bg-white dark:bg-slate-900 px-2 text-[11px] font-medium text-slate-400">
+                      Hoặc tiếp tục với
+                    </span>
+                  </div>
 
-                {isCloudAvailable && (
                   <div className="grid grid-cols-2 gap-3 pt-1">
                     <button
                       type="button"
                       onClick={() => handleOAuthLogin("google")}
                       className="py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center transition-colors"
                     >
-                      Google Cloud
+                      Google
                     </button>
                     <button
                       type="button"
                       onClick={() => handleOAuthLogin("github")}
                       className="py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center transition-colors"
                     >
-                      GitHub Cloud
+                      GitHub
                     </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>

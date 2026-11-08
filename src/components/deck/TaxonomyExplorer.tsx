@@ -419,10 +419,12 @@ export function TaxonomyExplorer({
       {filteredDecks.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredDecks.map((deck) => {
-            const isEnrolled =
-              currentUser?.enrolledDeckIds?.includes(deck.id) ||
-              deck.ownerId === currentUser?.id ||
-              deck.enrolledUsers?.includes(currentUser?.id || "");
+            const isEnrolled = Boolean(
+              currentUser &&
+                (currentUser.enrolledDeckIds?.includes(deck.id) ||
+                  deck.ownerId === currentUser.id ||
+                  (deck.enrolledUsers && deck.enrolledUsers.includes(currentUser.id)))
+            );
 
             const { examType, topic, level } = classifyDeck(deck);
             const levelInfo = CEFR_LEVELS.find((l) => l.id === level);
@@ -433,6 +435,7 @@ export function TaxonomyExplorer({
                   deck={deck}
                   cards={cards.filter((c) => c.deckId === deck.id)}
                   isEnrolled={isEnrolled}
+                  isLoggedIn={Boolean(currentUser)}
                   onEnroll={() => onEnroll(deck.id)}
                 />
                 {/* Level Badge Overlay on Top Right */}

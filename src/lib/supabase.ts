@@ -63,10 +63,18 @@ export async function signInWithEmail(email: string, password: string) {
 /**
  * Signs up with email and password
  */
-export async function signUpWithEmail(email: string, password: string) {
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+  metadata?: Record<string, any>
+) {
   const supabase = getSupabase();
   if (!supabase) throw new Error("Supabase chưa được cấu hình trong .env.local");
-  return await supabase.auth.signUp({ email, password });
+  return await supabase.auth.signUp({
+    email,
+    password,
+    options: metadata ? { data: metadata } : undefined,
+  });
 }
 
 /**

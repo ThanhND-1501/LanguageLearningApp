@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Deck, Card, UserProfile } from "@/types";
 import {
   getLocalDecks,
@@ -12,6 +13,8 @@ import {
   enrollInDeck,
 } from "@/lib/storage";
 import { getActiveUser, recordStudyActivity } from "@/lib/auth";
+import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
+import { mapDbToDeck } from "@/lib/sync";
 import { DeckCard } from "@/components/deck/DeckCard";
 import { TaxonomyExplorer } from "@/components/deck/TaxonomyExplorer";
 import { PhotoToCardModal } from "@/components/ai/PhotoToCardModal";
@@ -31,6 +34,7 @@ import {
 } from "lucide-react";
 
 export default function DecksPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [viewMode, setViewMode] = useState<"option1_taxonomy" | "option2_classic">("option1_taxonomy");
   const [activeTab, setActiveTab] = useState<"personal" | "global">("personal");
@@ -56,11 +60,26 @@ export default function DecksPage() {
     setCurrentUser(user);
     setPersonalDecks(getLocalDecks(user?.id));
     setGlobalDecks(getGlobalSharedDecks());
-    setCards(getLocalCards(user?.id));
+    setCards(getLocalCards());
   };
 
   useEffect(() => {
     refreshData();
+
+    if (isSupabaseConfigured()) {
+      const sb = getSupabase();
+      if (sb) {
+        sb.from("decks")
+          .select("*")
+          .then(({ data, error }) => {
+            if (!error && data && data.length > 0) {
+              const mapped = data.map(mapDbToDeck);
+              setGlobalDecks(mapped);
+              saveLocalDecks(mapped);
+            }
+          });
+      }
+    }
   }, []);
 
   const showToast = (msg: string) => {
@@ -71,6 +90,11 @@ export default function DecksPage() {
   };
 
   const handleEnroll = (deckId: string) => {
+    if (!currentUser) {
+      showToast("Vui lòng đăng nhập để đăng ký học bộ từ vựng này!");
+      setTimeout(() => router.push("/login"), 1000);
+      return;
+    }
     const res = enrollInDeck(deckId, currentUser?.id);
     if (res.success && res.deck) {
       recordStudyActivity(
@@ -85,6 +109,33 @@ export default function DecksPage() {
       showToast(`Đã thêm thành công "${res.deck.title}" vào bộ từ cá nhân của bạn!`);
       refreshData();
     }
+  };
+
+  const handleOpenUpload = () => {
+    if (!currentUser) {
+      showToast("Vui lòng đăng nhập để sử dụng tính năng trích xuất từ vựng từ tài liệu!");
+      setTimeout(() => router.push("/login"), 1000);
+      return;
+    }
+    setShowUploadModal(true);
+  };
+
+  const handleOpenAi = () => {
+    if (!currentUser) {
+      showToast("Vui lòng đăng nhập để sử dụng tính năng tạo thẻ bằng AI!");
+      setTimeout(() => router.push("/login"), 1000);
+      return;
+    }
+    setShowAiModal(true);
+  };
+
+  const handleOpenCreate = () => {
+    if (!currentUser) {
+      showToast("Vui lòng đăng nhập để tạo bộ từ vựng mới!");
+      setTimeout(() => router.push("/login"), 1000);
+      return;
+    }
+    setShowCreateModal(true);
   };
 
   const handleCreateDeck = (e: React.FormEvent) => {
@@ -207,7 +258,7 @@ export default function DecksPage() {
         {/* Action Buttons Toolbar */}
         <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={() => setShowUploadModal(true)}
+            onClick={handleOpenUpload}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300 transition-colors shadow-sm"
           >
             <Upload className="h-4 w-4" />
@@ -215,7 +266,7 @@ export default function DecksPage() {
           </button>
 
           <button
-            onClick={() => setShowAiModal(true)}
+            onClick={handleOpenAi}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand-200 bg-brand-50 text-brand-700 text-xs font-bold hover:bg-brand-100 dark:border-brand-900 dark:bg-brand-950/60 dark:text-brand-300 transition-colors"
           >
             <Sparkles className="h-4 w-4" />
@@ -223,7 +274,7 @@ export default function DecksPage() {
           </button>
 
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={handleOpenCreate}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-xs font-bold hover:bg-brand-700 transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" />
@@ -421,7 +472,8 @@ export default function DecksPage() {
                   key={deck.id}
                   deck={deck}
                   cards={cards.filter((c) => c.deckId === deck.id)}
-                  isEnrolled={true}
+                  isEnrolled={Boolean(currentUser)}
+                  isLoggedIn={Boolean(currentUser)}
                 />
               ))}
             </div>
@@ -450,13 +502,14 @@ export default function DecksPage() {
           {filteredDecks.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredDecks.map((deck) => {
-                const enrolled = isDeckEnrolled(deck.id, currentUser?.id);
+                const enrolled = Boolean(currentUser && isDeckEnrolled(deck.id, currentUser.id));
                 return (
                   <DeckCard
                     key={deck.id}
                     deck={deck}
                     cards={cards.filter((c) => c.deckId === deck.id)}
                     isEnrolled={enrolled}
+                    isLoggedIn={Boolean(currentUser)}
                     onEnroll={() => handleEnroll(deck.id)}
                   />
                 );
