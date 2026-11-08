@@ -213,7 +213,13 @@ export function getCurrentActiveUser(): UserProfile | null {
  * Returns all public/global shared decks available in the catalog
  */
 export function getGlobalSharedDecks(): Deck[] {
-  return GLOBAL_DECKS.map((d) => ({ ...d, isGlobal: true }));
+  const map = new Map<string, Deck>();
+  GLOBAL_DECKS.forEach((d) => map.set(d.id, { ...d, isGlobal: true }));
+  const stored = getRawStoredDecks();
+  stored
+    .filter((d) => d.isGlobal || d.ownerId === "system" || (d as any).is_public)
+    .forEach((d) => map.set(d.id, { ...d, isGlobal: true }));
+  return Array.from(map.values());
 }
 
 /**
@@ -275,7 +281,8 @@ function getRawStoredDecks(): Deck[] {
  */
 export function enrollInDeck(deckId: string, userId?: string): { success: boolean; deck?: Deck } {
   const storage = getStorage();
-  const targetDeck = GLOBAL_DECKS.find((d) => d.id === deckId);
+  const allDecks = [...GLOBAL_DECKS, ...getRawStoredDecks()];
+  const targetDeck = allDecks.find((d) => d.id === deckId);
   if (!targetDeck) return { success: false };
 
   const active = getCurrentActiveUser();
@@ -310,7 +317,8 @@ export function enrollInDeck(deckId: string, userId?: string): { success: boolea
   // Ensure cards for this deck exist in CARDS_KEY
   const currentCards = getRawStoredCards();
   const existingDeckCardIds = new Set(currentCards.map((c) => c.id));
-  const cardsToAdd = GLOBAL_CARDS.filter((c) => c.deckId === deckId && !existingDeckCardIds.has(c.id));
+  const allAvailableCards = [...GLOBAL_CARDS, ...currentCards];
+  const cardsToAdd = allAvailableCards.filter((c) => c.deckId === deckId && !existingDeckCardIds.has(c.id));
 
   if (cardsToAdd.length > 0) {
     // For a newly enrolling user, reset repetition & status to 'new' for clean personal learning

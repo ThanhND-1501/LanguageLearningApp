@@ -48,3 +48,6 @@ __pycache__/
 .eggs/
 .pytest_cache/
 
+# Temp files
+*.tmp
+.tmp/

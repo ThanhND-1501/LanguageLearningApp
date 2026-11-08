@@ -13,6 +13,7 @@ import {
 } from "@/lib/storage";
 import { getActiveUser, recordStudyActivity } from "@/lib/auth";
 import { DeckCard } from "@/components/deck/DeckCard";
+import { TaxonomyExplorer } from "@/components/deck/TaxonomyExplorer";
 import { PhotoToCardModal } from "@/components/ai/PhotoToCardModal";
 import { DocumentUploadModal } from "@/components/deck/DocumentUploadModal";
 import {
@@ -26,10 +27,12 @@ import {
   Layers,
   ArrowRight,
   Info,
+  Compass,
 } from "lucide-react";
 
 export default function DecksPage() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [viewMode, setViewMode] = useState<"option1_taxonomy" | "option2_classic">("option1_taxonomy");
   const [activeTab, setActiveTab] = useState<"personal" | "global">("personal");
   const [personalDecks, setPersonalDecks] = useState<Deck[]>([]);
   const [globalDecks, setGlobalDecks] = useState<Deck[]>([]);
@@ -136,13 +139,28 @@ export default function DecksPage() {
   };
 
   const currentDeckList = activeTab === "personal" ? personalDecks : globalDecks;
-  const allTags = Array.from(new Set(currentDeckList.flatMap((d) => d.tags)));
+  
+  // Clean unique tags, sorted logically (Primary skills first, then thematic categories)
+  const allTags = Array.from(new Set(currentDeckList.flatMap((d) => d.tags || [])))
+    .filter((t) => t && t.trim().length > 0)
+    .sort((a, b) => {
+      if (a.includes("Listening")) return -1;
+      if (b.includes("Listening")) return 1;
+      if (a.includes("Writing")) return -1;
+      if (b.includes("Writing")) return 1;
+      if (a.includes("Band")) return -1;
+      if (b.includes("Band")) return 1;
+      return a.localeCompare(b, "vi");
+    });
 
   const filteredDecks = currentDeckList.filter((deck) => {
+    const query = searchQuery.toLowerCase().trim();
     const matchesSearch =
-      deck.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      deck.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTag = selectedTag ? deck.tags.includes(selectedTag) : true;
+      !query ||
+      deck.title.toLowerCase().includes(query) ||
+      deck.description.toLowerCase().includes(query) ||
+      (deck.tags && deck.tags.some((t) => t.toLowerCase().includes(query)));
+    const matchesTag = selectedTag ? deck.tags?.includes(selectedTag) : true;
     return matchesSearch && matchesTag;
   });
 
@@ -214,7 +232,58 @@ export default function DecksPage() {
         </div>
       </div>
 
-      {/* Tabs Navigation */}
+      {/* ------------------------------------------------------------------ */}
+      {/* VIEW MODE SWITCHER: OPTION 1 (Phân cấp) vs OPTION 2 (Bộ thẻ gốc)   */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-1.5 bg-slate-100/90 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => setViewMode("option1_taxonomy")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              viewMode === "option1_taxonomy"
+                ? "bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-700"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            <Compass className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+            <span>Option 1: Lộ trình Phân Cấp (Chứng chỉ ➔ Chủ đề ➔ Level)</span>
+            <span className="px-1.5 py-0.2 bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300 rounded-md text-[10px] font-black uppercase">
+              Mặc định
+            </span>
+          </button>
+
+          <button
+            onClick={() => setViewMode("option2_classic")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              viewMode === "option2_classic"
+                ? "bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-700"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            <Layers className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <span>Option 2: Thư viện Bộ thẻ gốc ({globalDecks.length})</span>
+          </button>
+        </div>
+
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 px-3 hidden lg:block">
+          {viewMode === "option1_taxonomy"
+            ? "Đang lọc theo ma trận chuẩn: Chứng chỉ ➔ Chủ đề ➔ Khung CEFR"
+            : "Đang xem danh mục theo 88 bộ tài liệu gốc"}
+        </div>
+      </div>
+
+      {/* RENDER VIEW ACCORDING TO VIEW MODE */}
+      {viewMode === "option1_taxonomy" ? (
+        <TaxonomyExplorer
+          decks={globalDecks}
+          cards={cards}
+          currentUser={currentUser}
+          onEnroll={handleEnroll}
+          onRefresh={refreshData}
+        />
+      ) : (
+        <>
+          {/* Tabs Navigation */}
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800">
         <button
           onClick={() => setActiveTab("personal")}
@@ -245,47 +314,65 @@ export default function DecksPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={
-              activeTab === "personal"
-                ? "Tìm trong bộ từ của bạn..."
-                : "Tìm trong thư viện chung có sẵn..."
-            }
-            className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900"
-          />
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={
+                activeTab === "personal"
+                  ? "Tìm kiếm theo tên bộ từ, mô tả hoặc nhãn..."
+                  : "Tìm kiếm theo tên chủ đề, từ khóa hoặc nhãn..."
+              }
+              className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900"
+            />
+          </div>
+
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Hiển thị <span className="font-bold text-slate-900 dark:text-white">{filteredDecks.length}</span> / {currentDeckList.length} bộ từ
+          </div>
         </div>
 
-        {/* Tag Filters */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Clean Categorized Tag Filters */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
           <button
             onClick={() => setSelectedTag(null)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-xs ${
               selectedTag === null
                 ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
             }`}
           >
-            Tất cả
+            Tất cả ({currentDeckList.length})
           </button>
-          {allTags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                selectedTag === tag
-                  ? "bg-brand-600 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
+          {allTags.map((tag) => {
+            const count = currentDeckList.filter((d) => d.tags?.includes(tag)).length;
+            return (
+              <button
+                key={tag}
+                onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  selectedTag === tag
+                    ? "bg-brand-600 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                }`}
+              >
+                <span>{tag}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    selectedTag === tag
+                      ? "bg-brand-700 text-brand-100"
+                      : "bg-slate-200/80 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -381,6 +468,8 @@ export default function DecksPage() {
             </div>
           )}
         </div>
+      )}
+        </>
       )}
 
       {/* Manual Create Deck Modal */}
