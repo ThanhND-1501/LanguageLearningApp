@@ -5,6 +5,7 @@
 
 import { Card, Deck, SRSRating, UserProfile } from "@/types";
 import { calculateNextReview } from "./srs";
+import { getSupabase, isSupabaseConfigured } from "./supabase";
 
 const DECKS_KEY = "lingopulse_decks_v1";
 const CARDS_KEY = "lingopulse_cards_v1";
@@ -333,6 +334,21 @@ export function enrollInDeck(deckId: string, userId?: string): { success: boolea
     saveLocalCards([...currentCards, ...personalCards]);
   }
 
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase();
+    if (sb) {
+      sb.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          sb.auth.updateUser({
+            data: {
+              enrolled_deck_ids: active?.enrolledDeckIds || [deckId],
+            },
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+  }
+
   return { success: true, deck: targetDeck };
 }
 
@@ -413,11 +429,12 @@ export function getLocalDecks(userId?: string): Deck[] {
   }
 
   const ownedDecks = storedDecks.filter((d) => d.ownerId === currentUserId);
-  const enrolledGlobalDecks = GLOBAL_DECKS.filter((d) => enrolledIds.includes(d.id));
+  const allAvailableDecks = [...storedDecks, ...GLOBAL_DECKS];
+  const enrolledDecks = allAvailableDecks.filter((d) => enrolledIds.includes(d.id));
 
-  // Combine owned + enrolled global decks (avoiding duplicates)
+  // Combine owned + enrolled decks (avoiding duplicates)
   const userDecks = [...ownedDecks];
-  for (const ed of enrolledGlobalDecks) {
+  for (const ed of enrolledDecks) {
     if (!userDecks.some((d) => d.id === ed.id)) {
       userDecks.push(ed);
     }
@@ -480,12 +497,12 @@ export function getLocalCards(userId?: string, deckId?: string): Card[] {
     return GLOBAL_CARDS.filter((c) => c.deckId === deckId);
   }
 
-  // If Demo / Guest user, return all cards
-  if (!currentUserId || currentUserId === "user-demo-linguist") {
+  // If Demo / Guest user or called without explicit userId filter, return all cards
+  if (!userId || currentUserId === "user-demo-linguist") {
     return allCards;
   }
 
-  // If Registered User, return cards only from user's enrolled and owned decks
+  // If Registered User with explicit userId filter (e.g. for user personal stats)
   const userDecks = getLocalDecks(currentUserId);
   const userDeckIds = new Set(userDecks.map((d) => d.id));
 
@@ -518,5 +535,28 @@ export function updateCardWithSRSRating(cardId: string, rating: SRSRating): Card
 
   allCards[cardIndex] = updatedCard;
   saveLocalCards(allCards);
+
+  // Sync updated card SRS parameters to Supabase immediately
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase();
+    if (sb) {
+      sb.from("cards")
+        .update({
+          status: updatedCard.status,
+          repetition: updatedCard.repetition,
+          easiness_factor: updatedCard.easinessFactor,
+          interval_days: updatedCard.intervalDays,
+          next_review_at: updatedCard.nextReviewAt,
+          last_reviewed_at: updatedCard.lastReviewedAt,
+        })
+        .eq("id", cardId)
+        .then(({ error }) => {
+          if (error) {
+            console.warn("Could not sync card SRS to Supabase:", error);
+          }
+        });
+    }
+  }
+
   return updatedCard;
 }

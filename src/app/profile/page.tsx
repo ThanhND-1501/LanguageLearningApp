@@ -33,13 +33,14 @@ import {
 } from "@/lib/auth";
 import { isSupabaseConfigured, getSessionUser } from "@/lib/supabase";
 import { getLocalCards, getLocalDecks } from "@/lib/storage";
-import { UserProfile, UserPersonalStats, StudyActivity, TargetProficiencyLevel } from "@/types";
+import { UserProfile, UserPersonalStats, StudyActivity, TargetProficiencyLevel, Deck } from "@/types";
 
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserPersonalStats | null>(null);
   const [activities, setActivities] = useState<StudyActivity[]>([]);
+  const [enrolledDecks, setEnrolledDecks] = useState<Deck[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
   // Edit fields
@@ -56,6 +57,7 @@ export default function ProfilePage() {
       setEditGoal(u.dailyGoalCards || 15);
       setStats(getUserPersonalStats(u.id));
       setActivities(getUserActivities(u.id));
+      setEnrolledDecks(getLocalDecks(u.id));
     };
 
     if (isSupabaseConfigured()) {
@@ -376,6 +378,74 @@ export default function ProfilePage() {
             Đánh giá trên 4 tiêu chí Azure AI: Độ chuẩn âm (Accuracy), Độ trôi chảy (Fluency), Độ hoàn thiện (Completeness) và Ngữ điệu (Prosody).
           </p>
         </div>
+      </div>
+
+      {/* Enrolled Decks Section */}
+      <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              Các bộ từ vựng đã đăng ký ({enrolledDecks.length})
+            </h3>
+            <p className="text-xs text-slate-500">
+              Các bộ từ vựng bạn đang theo dõi và học theo lộ trình cá nhân
+            </p>
+          </div>
+          <Link
+            href="/decks"
+            className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+          >
+            <span>Khám phá thêm</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {enrolledDecks.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 text-xs">
+            Bạn chưa đăng ký bộ từ vựng nào. Hãy vào Kho từ vựng để chọn bộ từ bắt đầu học!
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {enrolledDecks.map((deck) => (
+              <div
+                key={deck.id}
+                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {deck.tags.slice(0, 2).map((t) => (
+                      <span
+                        key={t}
+                        className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">
+                    {deck.title}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
+                    {deck.description}
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                  <span className="text-xs text-slate-400">
+                    {deck.totalCards || 0} thẻ chuẩn
+                  </span>
+                  <Link
+                    href={`/study/${deck.id}`}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 transition-colors shadow-xs"
+                  >
+                    <span>Học ngay</span>
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Activity History Timeline */}

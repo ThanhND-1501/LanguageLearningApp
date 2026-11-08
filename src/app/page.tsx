@@ -24,13 +24,22 @@ import {
   Globe,
 } from "lucide-react";
 import { getActiveUser } from "@/lib/auth";
-import { UserProfile } from "@/types";
+import { UserProfile, Deck, Card } from "@/types";
+import { getLocalDecks, getLocalCards } from "@/lib/storage";
+import { DeckCard } from "@/components/deck/DeckCard";
 
 export default function HomePage() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [enrolledDecks, setEnrolledDecks] = useState<Deck[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
 
   useEffect(() => {
-    setCurrentUser(getActiveUser());
+    const user = getActiveUser();
+    setCurrentUser(user);
+    if (user) {
+      setEnrolledDecks(getLocalDecks(user.id));
+      setCards(getLocalCards());
+    }
   }, []);
 
   return (
@@ -72,7 +81,72 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 2. Hero Section (Introduction to LingoPulse AI) */}
+      {/* 2. Enrolled Decks Hub for Logged-in User */}
+      {currentUser && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                  Bộ từ vựng bạn đang học
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-brand-600 border border-indigo-100 dark:bg-indigo-950/60 dark:text-brand-300 dark:border-indigo-900">
+                  {enrolledDecks.length} bộ đã đăng ký
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Tiến độ ghi nhớ Spaced Repetition (SRS) trên các bộ từ cá nhân của bạn
+              </p>
+            </div>
+
+            <Link
+              href="/decks"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 self-start sm:self-auto"
+            >
+              <span>Đến Kho bộ từ vựng</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {enrolledDecks.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {enrolledDecks.map((deck) => (
+                <DeckCard
+                  key={deck.id}
+                  deck={deck}
+                  cards={cards.filter((c) => c.deckId === deck.id)}
+                  isEnrolled={true}
+                  isLoggedIn={true}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 sm:p-10 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-xs">
+              <div className="h-12 w-12 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-brand-600 dark:text-brand-300 flex items-center justify-center">
+                <BookOpen className="h-6 w-6" />
+              </div>
+              <div className="max-w-md mx-auto space-y-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Bạn chưa đăng ký bộ từ vựng nào
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Toàn bộ các bộ từ vựng chuẩn (IELTS, TOEIC, Giao tiếp, Công nghệ) được lưu trữ tập trung tại Kho từ vựng. Hãy chọn bộ từ phù hợp để bắt đầu học!
+                </p>
+              </div>
+              <Link
+                href="/decks"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-sm transition-all"
+              >
+                <Compass className="h-4 w-4" />
+                <span>Khám phá Kho từ vựng</span>
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 3. Hero Section (Introduction to LingoPulse AI) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-700 via-indigo-600 to-violet-800 p-8 sm:p-14 lg:p-16 text-white shadow-2xl shadow-brand-500/15">
           <div className="relative z-10 max-w-3xl space-y-6">

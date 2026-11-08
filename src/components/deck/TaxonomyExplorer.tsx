@@ -60,6 +60,7 @@ export function TaxonomyExplorer({
   const [selectedTopic, setSelectedTopic] = useState<TopicType>("all");
   const [selectedLevel, setSelectedLevel] = useState<CefrLevel>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [onlyEnrolled, setOnlyEnrolled] = useState(false);
 
   // Icon Resolver
   const renderIcon = (name: string, className = "h-4 w-4") => {
@@ -134,13 +135,22 @@ export function TaxonomyExplorer({
 
   // Filtered decks
   const filteredDecks = useMemo(() => {
-    return filterDecksByTaxonomy(decks, {
+    const list = filterDecksByTaxonomy(decks, {
       examType: selectedExam,
       topic: selectedTopic,
       level: selectedLevel,
       searchQuery,
     });
-  }, [decks, selectedExam, selectedTopic, selectedLevel, searchQuery]);
+    if (onlyEnrolled && currentUser) {
+      return list.filter(
+        (deck) =>
+          currentUser.enrolledDeckIds?.includes(deck.id) ||
+          deck.ownerId === currentUser.id ||
+          (deck.enrolledUsers && deck.enrolledUsers.includes(currentUser.id))
+      );
+    }
+    return list;
+  }, [decks, selectedExam, selectedTopic, selectedLevel, searchQuery, onlyEnrolled, currentUser]);
 
   const totalFilteredCards = useMemo(() => {
     return filteredDecks.reduce((sum, d) => sum + (d.totalCards || 0), 0);
@@ -151,13 +161,15 @@ export function TaxonomyExplorer({
     setSelectedTopic("all");
     setSelectedLevel("all");
     setSearchQuery("");
+    setOnlyEnrolled(false);
   };
 
   const hasActiveFilters =
     selectedExam !== "all" ||
     selectedTopic !== "all" ||
     selectedLevel !== "all" ||
-    searchQuery.trim().length > 0;
+    searchQuery.trim().length > 0 ||
+    onlyEnrolled;
 
   return (
     <div className="space-y-6">
@@ -387,16 +399,33 @@ export function TaxonomyExplorer({
           )}
         </div>
 
-        {/* Quick Search */}
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Lọc từ khóa trong kết quả..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 dark:bg-slate-900 focus:outline-none focus:border-brand-500"
-          />
+        {/* Quick Filter by Enrolled & Search */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {currentUser && (
+            <button
+              type="button"
+              onClick={() => setOnlyEnrolled(!onlyEnrolled)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                onlyEnrolled
+                  ? "bg-brand-600 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-white"
+              }`}
+            >
+              <Check className="h-3.5 w-3.5" />
+              <span>Đã đăng ký</span>
+            </button>
+          )}
+
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Lọc từ khóa trong kết quả..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 dark:bg-slate-900 focus:outline-none focus:border-brand-500"
+            />
+          </div>
         </div>
       </div>
 
