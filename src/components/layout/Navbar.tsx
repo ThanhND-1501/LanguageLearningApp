@@ -10,20 +10,16 @@ import {
   MessageSquare,
   Layers,
   Flame,
-  Cloud,
-  CheckCircle2,
   User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isSupabaseConfigured, getSessionUser } from "@/lib/supabase";
 import { getActiveUser, syncSupabaseSessionToLocalUser } from "@/lib/auth";
-import { AuthModal } from "@/components/auth/AuthModal";
 import type { User } from "@supabase/supabase-js";
 import { UserProfile } from "@/types";
 
 export function Navbar() {
   const pathname = usePathname();
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeProfile, setActiveProfile] = useState<UserProfile | null>(null);
   const isCloudConfigured = isSupabaseConfigured();
@@ -45,19 +41,30 @@ export function Navbar() {
     }
   }, [isCloudConfigured, pathname]);
 
-  const navItems = [
-    { href: "/", label: "Tổng quan", icon: Layers },
-    { href: "/decks", label: "Bộ từ vựng", icon: BookOpen },
-    { href: "/speaking", label: "Luyện phản xạ nói", icon: Mic },
-    { href: "/conversation", label: "Hội thoại AI", icon: MessageSquare },
-  ];
+  const navItems = activeProfile
+    ? [
+        { href: "/home", label: "Tổng quan", icon: Layers },
+        { href: "/decks", label: "Kho từ vựng", icon: BookOpen },
+        { href: "/speaking", label: "Luyện phản xạ nói", icon: Mic },
+        { href: "/conversation", label: "Hội thoại AI", icon: MessageSquare },
+        { href: "/welcome", label: "Giới thiệu", icon: Sparkles },
+      ]
+    : [
+        { href: "/welcome", label: "Giới thiệu", icon: Sparkles },
+        { href: "/decks", label: "Kho từ vựng", icon: BookOpen },
+        { href: "/speaking", label: "Luyện phản xạ nói", icon: Mic },
+        { href: "/conversation", label: "Hội thoại AI", icon: MessageSquare },
+      ];
 
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2.5 font-bold text-xl text-slate-900 dark:text-white">
+            <Link
+              href={activeProfile ? "/home" : "/welcome"}
+              className="flex items-center gap-2.5 font-bold text-xl text-slate-900 dark:text-white"
+            >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white shadow-md shadow-brand-500/20">
                 <Sparkles className="h-5 w-5" />
               </div>
@@ -95,30 +102,18 @@ export function Navbar() {
           <div className="flex items-center gap-2.5 sm:gap-3">
             {/* Unified User Account / Login */}
             {activeProfile || currentUser ? (
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/profile"
-                  className="flex items-center gap-2 p-1 sm:px-3 sm:py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-950/60 dark:hover:text-brand-300 transition-colors border border-slate-200 dark:border-slate-700"
-                  title="Hồ sơ cá nhân & Thống kê"
-                >
-                  <div className="h-6 w-6 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                    {(activeProfile?.name || currentUser?.email || "U").charAt(0).toUpperCase()}
-                  </div>
-                  <span className="hidden sm:inline text-xs font-semibold max-w-[120px] truncate text-slate-800 dark:text-slate-200">
-                    {activeProfile?.name || currentUser?.email}
-                  </span>
-                </Link>
-
-                {/* Cloud Sync Button */}
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 transition-all"
-                  title="Đồng bộ Supabase Cloud"
-                >
-                  <Cloud className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span className="hidden md:inline text-[11px]">Đồng bộ Cloud</span>
-                </button>
-              </div>
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 p-1 sm:px-3 sm:py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-950/60 dark:hover:text-brand-300 transition-colors border border-slate-200 dark:border-slate-700"
+                title="Hồ sơ cá nhân & Thống kê"
+              >
+                <div className="h-6 w-6 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  {(activeProfile?.name || currentUser?.email || "U").charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden sm:inline text-xs font-semibold max-w-[120px] truncate text-slate-800 dark:text-slate-200">
+                  {activeProfile?.name || currentUser?.email}
+                </span>
+              </Link>
             ) : (
               <Link
                 href="/login"
@@ -138,7 +133,7 @@ export function Navbar() {
             )}
 
             <Link
-              href={activeProfile ? "/study/deck-ielts-mastery" : "/login"}
+              href={activeProfile ? "/home" : "/login"}
               className="hidden lg:inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-xl hover:bg-brand-700 shadow-sm transition-colors"
             >
               {activeProfile ? "Ôn tập hôm nay" : "Bắt đầu học"}
@@ -146,16 +141,6 @@ export function Navbar() {
           </div>
         </div>
       </header>
-
-      {/* Auth & Sync Modal */}
-      {showAuthModal && (
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onSyncComplete={() => {
-            getSessionUser().then((user) => setCurrentUser(user));
-          }}
-        />
-      )}
     </>
   );
 }

@@ -73,9 +73,31 @@ export default function StudySessionPage() {
           .then(({ data, error }) => {
             if (!error && data && data.length > 0) {
               const cloudDeckCards = data.map(mapDbToCard);
-              setupCards(cloudDeckCards);
-              const remaining = allCards.filter((c) => c.deckId !== deckId);
-              saveLocalCards([...remaining, ...cloudDeckCards]);
+              // Smart merge: preserve more recent local reviews
+              const allStoredCards = getLocalCards();
+              const merged = cloudDeckCards.map((cloudCard) => {
+                const localCard = allStoredCards.find((c) => c.id === cloudCard.id);
+                if (localCard && localCard.lastReviewedAt) {
+                  const localTime = new Date(localCard.lastReviewedAt).getTime();
+                  const cloudTime = cloudCard.lastReviewedAt ? new Date(cloudCard.lastReviewedAt).getTime() : 0;
+                  if (localTime >= cloudTime) {
+                    return {
+                      ...cloudCard,
+                      status: localCard.status,
+                      repetition: localCard.repetition,
+                      easinessFactor: localCard.easinessFactor,
+                      intervalDays: localCard.intervalDays,
+                      nextReviewAt: localCard.nextReviewAt,
+                      lastReviewedAt: localCard.lastReviewedAt,
+                    };
+                  }
+                }
+                return cloudCard;
+              });
+
+              setupCards(merged);
+              const remaining = allStoredCards.filter((c) => c.deckId !== deckId);
+              saveLocalCards([...remaining, ...merged]);
             }
           });
       }

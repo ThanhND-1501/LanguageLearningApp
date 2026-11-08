@@ -22,7 +22,11 @@ import {
   Layers,
   ChevronRight,
   RefreshCw,
+  Cloud,
+  AlertCircle,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { syncAll } from "@/lib/sync";
 import {
   getActiveUser,
   getUserPersonalStats,
@@ -33,13 +37,14 @@ import {
 } from "@/lib/auth";
 import { isSupabaseConfigured, getSessionUser } from "@/lib/supabase";
 import { getLocalCards, getLocalDecks } from "@/lib/storage";
-import { UserProfile, UserPersonalStats, StudyActivity, TargetProficiencyLevel } from "@/types";
+import { UserProfile, UserPersonalStats, StudyActivity, TargetProficiencyLevel, Deck } from "@/types";
 
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserPersonalStats | null>(null);
   const [activities, setActivities] = useState<StudyActivity[]>([]);
+  const [enrolledDecks, setEnrolledDecks] = useState<Deck[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
   // Edit fields
@@ -56,6 +61,7 @@ export default function ProfilePage() {
       setEditGoal(u.dailyGoalCards || 15);
       setStats(getUserPersonalStats(u.id));
       setActivities(getUserActivities(u.id));
+      setEnrolledDecks(getLocalDecks(u.id));
     };
 
     if (isSupabaseConfigured()) {
@@ -118,6 +124,33 @@ export default function ProfilePage() {
     a.download = `lingopulse-vocabulary-${user?.name?.toLowerCase().replace(/\s+/g, "-") || "export"}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await syncAll();
+      setSyncResult({
+        success: res.success,
+        message: res.message || (res.success ? "Đồng bộ đám mây thành công!" : "Không thể đồng bộ"),
+      });
+      if (user) {
+        setStats(getUserPersonalStats(user.id));
+        setActivities(getUserActivities(user.id));
+        setEnrolledDecks(getLocalDecks(user.id));
+      }
+    } catch (err: any) {
+      setSyncResult({
+        success: false,
+        message: err.message || "Lỗi khi kết nối đám mây",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   if (!user) {
@@ -376,6 +409,141 @@ export default function ProfilePage() {
             Đánh giá trên 4 tiêu chí Azure AI: Độ chuẩn âm (Accuracy), Độ trôi chảy (Fluency), Độ hoàn thiện (Completeness) và Ngữ điệu (Prosody).
           </p>
         </div>
+      </div>
+
+      {/* Enrolled Decks Section */}
+      <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              Các bộ từ vựng đã đăng ký ({enrolledDecks.length})
+            </h3>
+            <p className="text-xs text-slate-500">
+              Các bộ từ vựng bạn đang theo dõi và học theo lộ trình cá nhân
+            </p>
+          </div>
+          <Link
+            href="/decks"
+            className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+          >
+            <span>Khám phá thêm</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {enrolledDecks.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 text-xs">
+            Bạn chưa đăng ký bộ từ vựng nào. Hãy vào Kho từ vựng để chọn bộ từ bắt đầu học!
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {enrolledDecks.map((deck) => (
+              <div
+                key={deck.id}
+                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {deck.tags.slice(0, 2).map((t) => (
+                      <span
+                        key={t}
+                        className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">
+                    {deck.title}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
+                    {deck.description}
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                  <span className="text-xs text-slate-400">
+                    {deck.totalCards || 0} thẻ chuẩn
+                  </span>
+                  <Link
+                    href={`/study/${deck.id}`}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 transition-colors shadow-xs"
+                  >
+                    <span>Học ngay</span>
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Cloud Sync & Backup Section */}
+      <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-brand-600 dark:bg-indigo-950 dark:text-brand-300 flex items-center justify-center shrink-0 mt-0.5">
+              <Cloud className="h-5 w-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Lưu trữ đám mây & Tự động đồng bộ
+                </h3>
+                {isSupabaseConfigured() ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Supabase Cloud Connected
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                    Lưu trữ cục bộ Local-First (0ms)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Hệ thống tự động sao lưu nền (Background Auto-sync) tức thì mọi tiến độ lật thẻ SRS, bài luyện phát âm PronScore™ và bộ từ vựng cá nhân mà không cần thao tác thủ công.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={handleManualSync}
+              disabled={isSyncing}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all disabled:opacity-60"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin text-brand-600")} />
+              <span>{isSyncing ? "Đang đồng bộ..." : "Đồng bộ thủ công"}</span>
+            </button>
+            <button
+              onClick={handleExportVocabulary}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Xuất sao lưu (.json)</span>
+            </button>
+          </div>
+        </div>
+
+        {syncResult && (
+          <div
+            className={cn(
+              "flex items-center gap-2 p-3 rounded-xl text-xs font-medium border animate-in fade-in duration-200",
+              syncResult.success
+                ? "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+            )}
+          >
+            {syncResult.success ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+            )}
+            <span>{syncResult.message}</span>
+          </div>
+        )}
       </div>
 
       {/* Activity History Timeline */}

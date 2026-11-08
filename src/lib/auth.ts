@@ -318,12 +318,20 @@ export function syncSupabaseSessionToLocalUser(supabaseUser: {
 
   let profile: UserProfile;
 
+  const meta = supabaseUser.user_metadata || {};
+
   if (existingIndex !== -1) {
     profile = {
       ...accounts[existingIndex].profile,
       isCloudSynced: true,
       email,
       name: accounts[existingIndex].profile.name || name,
+      targetLevel: (meta.target_level as TargetProficiencyLevel) || accounts[existingIndex].profile.targetLevel || "IELTS 7.5+",
+      dailyGoalCards: meta.daily_goal_cards || accounts[existingIndex].profile.dailyGoalCards || 15,
+      enrolledDeckIds: Array.from(new Set([
+        ...(accounts[existingIndex].profile.enrolledDeckIds || []),
+        ...(Array.isArray(meta.enrolled_deck_ids) ? meta.enrolled_deck_ids : []),
+      ])),
     };
     accounts[existingIndex].profile = profile;
     saveStoredAccounts(accounts);
@@ -332,13 +340,13 @@ export function syncSupabaseSessionToLocalUser(supabaseUser: {
       id: supabaseUser.id || `user-${Date.now()}`,
       email,
       name,
-      targetLevel: "IELTS 7.5+",
-      dailyGoalCards: 15,
+      targetLevel: (meta.target_level as TargetProficiencyLevel) || "IELTS 7.5+",
+      dailyGoalCards: meta.daily_goal_cards || 15,
       streakDays: 1,
       lastActiveDate: new Date().toISOString().split("T")[0],
       createdAt: new Date().toISOString(),
       isCloudSynced: true,
-      enrolledDeckIds: [],
+      enrolledDeckIds: Array.isArray(meta.enrolled_deck_ids) ? meta.enrolled_deck_ids : [],
     };
     accounts.push({
       id: profile.id,
@@ -347,6 +355,22 @@ export function syncSupabaseSessionToLocalUser(supabaseUser: {
       profile,
     });
     saveStoredAccounts(accounts);
+  }
+
+  // Restore cloud activities if local storage is empty
+  if (Array.isArray(meta.study_activities) && meta.study_activities.length > 0) {
+    const storage = getStorage();
+    if (storage) {
+      try {
+        const raw = storage.getItem(ACTIVITIES_STORAGE_KEY);
+        const localList = raw ? JSON.parse(raw) : [];
+        if (localList.length === 0) {
+          storage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(meta.study_activities));
+        }
+      } catch {
+        // Ignore
+      }
+    }
   }
 
   setActiveUser(profile);
@@ -389,6 +413,24 @@ export async function updateUserProfile(updates: Partial<UserProfile>): Promise<
     saveStoredAccounts(accounts);
   }
 
+  // Sync profile metadata to Supabase Cloud
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase();
+    if (sb) {
+      sb.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          sb.auth.updateUser({
+            data: {
+              name: updated.name,
+              target_level: updated.targetLevel,
+              daily_goal_cards: updated.dailyGoalCards,
+            },
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+  }
+
   return updated;
 }
 
@@ -413,18 +455,35 @@ export function recordStudyActivity(
   };
 
   const storage = getStorage();
+  let updatedList: StudyActivity[] = [newActivity];
   if (!storage) {
     memoryActivities = [newActivity, ...memoryActivities].slice(0, 100);
-    return newActivity;
+    updatedList = memoryActivities;
+  } else {
+    try {
+      const raw = storage.getItem(ACTIVITIES_STORAGE_KEY);
+      const list: StudyActivity[] = raw ? JSON.parse(raw) : [];
+      updatedList = [newActivity, ...list].slice(0, 100); // Keep last 100 activities
+      storage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(updatedList));
+    } catch {
+      // Ignore storage errors
+    }
   }
 
-  try {
-    const raw = storage.getItem(ACTIVITIES_STORAGE_KEY);
-    const list: StudyActivity[] = raw ? JSON.parse(raw) : [];
-    const updated = [newActivity, ...list].slice(0, 100); // Keep last 100 activities
-    storage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(updated));
-  } catch {
-    // Ignore storage errors
+  // Sync recent activities (up to 50) to Supabase Cloud User Metadata
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase();
+    if (sb) {
+      sb.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          sb.auth.updateUser({
+            data: {
+              study_activities: updatedList.slice(0, 50),
+            },
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
   }
 
   return newActivity;
