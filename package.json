@@ -8,11 +8,19 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "node --test-reporter=spec tests/run.js",
+    "openpronounce:start": "bash services/openpronounce/run_server.sh",
+    "openpronounce:health": "curl -s http://127.0.0.1:8000/health",
+    "tunnel": "export PATH=\"/data/thanhnd17/local_root/usr/bin:$PATH\" && cloudflared tunnel --url http://localhost:3001",
+    "tunnel:ngrok": "/snap/bin/ngrok http 3001"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.109.0",
+    "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.454.0",
+    "mammoth": "^1.13.0",
     "next": "^14.2.20",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

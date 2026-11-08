@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. BẢNG BỘ TỪ VỰNG (Study Sets / Decks)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS decks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     target_lang VARCHAR(10) NOT NULL DEFAULT 'en-US',
@@ -30,8 +30,8 @@ CREATE INDEX IF NOT EXISTS idx_decks_created_at ON decks (created_at DESC);
 -- 2. BẢNG THẺ TỪ VỰNG & TRẠNG THÁI SRS (Cards & Spaced Repetition State)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cards (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    deck_id UUID NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY,
+    deck_id TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
     term VARCHAR(255) NOT NULL,                           -- Từ vựng (VD: "resilient")
     phonetic VARCHAR(100),                                -- Phiên âm IPA (VD: "/rɪˈzɪliənt/")
     part_of_speech VARCHAR(50),                           -- Từ loại (noun, verb, adjective...)
@@ -64,8 +64,8 @@ CREATE INDEX IF NOT EXISTS idx_cards_term ON cards (term);
 -- 3. BẢNG LỊCH SỬ LUYỆN NÓI & CHẤM ĐIỂM PHÁT ÂM (Speaking Attempts & PronScore)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS speaking_attempts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    card_id UUID REFERENCES cards(id) ON DELETE SET NULL,
+    id TEXT PRIMARY KEY,
+    card_id TEXT REFERENCES cards(id) ON DELETE SET NULL,
     prompt_question TEXT NOT NULL,                        -- Đề bài / Câu hỏi mở
     user_transcript TEXT NOT NULL,                        -- Văn bản người dùng đã nói (STT)
     target_words JSONB DEFAULT '[]'::jsonb,               -- Danh sách từ bắt buộc phải xuất hiện
@@ -91,7 +91,7 @@ CREATE INDEX IF NOT EXISTS idx_speaking_attempts_created_at ON speaking_attempts
 -- 4. BẢNG PHIÊN HỘI THOẠI TÌNH HUỐNG AI (Roleplay Conversation Sessions)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS conversation_sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     scenario_title VARCHAR(255) NOT NULL,                 -- VD: "Job Interview", "Ordering at Cafe"
     system_persona TEXT,                                  -- Persona AI đóng vai (VD: "Strict Tech Interviewer")
     target_words JSONB NOT NULL DEFAULT '[]'::jsonb,      -- Danh sách từ vựng buộc dùng trong hội thoại
@@ -141,3 +141,44 @@ SELECT
 FROM decks d
 LEFT JOIN cards c ON d.id = c.deck_id
 GROUP BY d.id, d.title, d.target_lang;
+
+-- ------------------------------------------------------------------------------
+-- ROW LEVEL SECURITY (RLS) POLICIES CHO PHÉP ĐỌC & ĐỒNG BỘ
+-- ------------------------------------------------------------------------------
+ALTER TABLE decks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE speaking_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversation_sessions ENABLE ROW LEVEL SECURITY;
+
+-- 1. Cho phép đọc công khai
+DROP POLICY IF EXISTS "Allow read decks" ON decks;
+CREATE POLICY "Allow read decks" ON decks FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow read cards" ON cards;
+CREATE POLICY "Allow read cards" ON cards FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow read speaking_attempts" ON speaking_attempts;
+CREATE POLICY "Allow read speaking_attempts" ON speaking_attempts FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow read conversation_sessions" ON conversation_sessions;
+CREATE POLICY "Allow read conversation_sessions" ON conversation_sessions FOR SELECT USING (true);
+
+-- 2. Cho phép người dùng đã xác thực (hoặc client đồng bộ) thực hiện ghi / cập nhật
+DROP POLICY IF EXISTS "Allow authenticated write decks" ON decks;
+CREATE POLICY "Allow authenticated write decks" ON decks FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated write cards" ON cards;
+CREATE POLICY "Allow authenticated write cards" ON cards FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated write speaking_attempts" ON speaking_attempts;
+CREATE POLICY "Allow authenticated write speaking_attempts" ON speaking_attempts FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated write conversation_sessions" ON conversation_sessions;
+CREATE POLICY "Allow authenticated write conversation_sessions" ON conversation_sessions FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 3. Cho phép cả client anon ghi (để hỗ trợ đồng bộ dữ liệu ban đầu hoặc tài khoản demo nếu cần)
+DROP POLICY IF EXISTS "Allow anon write decks" ON decks;
+CREATE POLICY "Allow anon write decks" ON decks FOR ALL TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon write cards" ON cards;
+CREATE POLICY "Allow anon write cards" ON cards FOR ALL TO anon USING (true) WITH CHECK (true);

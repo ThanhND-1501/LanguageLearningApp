@@ -1,0 +1,553 @@
+// ==============================================================================
+// Hybrid Authentication & Personalized Account Management Engine
+// Supports Local-First Accounts (zero-config, offline-ready) & Supabase Cloud Auth
+// Handles user profiling, activity tracking, personalized statistics & streak tracking
+// ==============================================================================
+
+import {
+  UserProfile,
+  TargetProficiencyLevel,
+  StudyActivity,
+  UserPersonalStats,
+  Card,
+  Deck,
+} from "@/types";
+import {
+  isSupabaseConfigured,
+  getSupabase,
+  signOut as supabaseSignOut,
+  signInWithEmail,
+  signUpWithEmail,
+} from "./supabase";
+import { getLocalCards, getLocalDecks } from "./storage";
+
+const ACCOUNTS_STORAGE_KEY = "lingopulse_accounts_v1";
+const ACTIVE_USER_STORAGE_KEY = "lingopulse_active_user_v1";
+const ACTIVITIES_STORAGE_KEY = "lingopulse_activities_v1";
+
+interface StoredAccount {
+  id: string;
+  email: string;
+  passwordHash: string;
+  profile: UserProfile;
+}
+
+/**
+ * SHA-256 Password Hashing via Web Crypto API (supported natively in browsers and Node.js)
+ */
+export async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password.trim());
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export const DEMO_USER: UserProfile = {
+  id: "user-demo-linguist",
+  email: "demo@lingopulse.ai",
+  name: "Alex Nguyen (Demo)",
+  avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+  targetLevel: "IELTS 7.5+",
+  dailyGoalCards: 15,
+  streakDays: 7,
+  lastActiveDate: new Date().toISOString().split("T")[0],
+  createdAt: new Date(Date.now() - 14 * 86400000).toISOString(),
+  isCloudSynced: false,
+  enrolledDeckIds: ["deck-ielts-mastery", "deck-silicon-valley"],
+};
+
+let memoryAccounts: StoredAccount[] = [];
+let memoryActiveUser: UserProfile | null = null;
+let memoryActivities: StudyActivity[] = [];
+
+function getStorage(): Storage | null {
+  if (typeof window !== "undefined" && window.localStorage) return window.localStorage;
+  if (typeof globalThis !== "undefined" && (globalThis as any).localStorage) return (globalThis as any).localStorage;
+  return null;
+}
+
+/**
+ * Resets memory and storage states for clean unit testing
+ */
+export function clearAuthStorageForTesting(): void {
+  memoryAccounts = [];
+  memoryActiveUser = null;
+  memoryActivities = [];
+  const storage = getStorage();
+  if (storage) {
+    try {
+      storage.removeItem(ACCOUNTS_STORAGE_KEY);
+      storage.removeItem(ACTIVE_USER_STORAGE_KEY);
+      storage.removeItem(ACTIVITIES_STORAGE_KEY);
+    } catch {
+      // Ignore
+    }
+  }
+}
+
+function getStoredAccounts(): StoredAccount[] {
+  const storage = getStorage();
+  if (!storage) return memoryAccounts;
+  try {
+    const raw = storage.getItem(ACCOUNTS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredAccounts(accounts: StoredAccount[]): void {
+  const storage = getStorage();
+  if (!storage) {
+    memoryAccounts = accounts;
+    return;
+  }
+  try {
+    storage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Retrieves the currently active user profile
+ */
+export function getActiveUser(): UserProfile | null {
+  const storage = getStorage();
+  if (!storage) return memoryActiveUser;
+  try {
+    const raw = storage.getItem(ACTIVE_USER_STORAGE_KEY);
+    if (!raw) return null;
+    const user: UserProfile = JSON.parse(raw);
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sets or clears the currently active user profile
+ */
+export function setActiveUser(user: UserProfile | null): void {
+  if (user) {
+    // Update streak if active on a new calendar day
+    const today = new Date().toISOString().split("T")[0];
+    if (user.lastActiveDate !== today) {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+      if (user.lastActiveDate === yesterday) {
+        user.streakDays = (user.streakDays || 0) + 1;
+      } else {
+        user.streakDays = 1;
+      }
+      user.lastActiveDate = today;
+    }
+  }
+
+  const storage = getStorage();
+  if (!storage) {
+    memoryActiveUser = user;
+    return;
+  }
+
+  try {
+    if (user) {
+      storage.setItem(ACTIVE_USER_STORAGE_KEY, JSON.stringify(user));
+    } else {
+      storage.removeItem(ACTIVE_USER_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Registers a new local account
+ */
+export async function registerLocalUser(
+  name: string,
+  email: string,
+  password: string,
+  targetLevel: TargetProficiencyLevel = "IELTS 6.5"
+): Promise<UserProfile> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanName = name.trim();
+
+  if (!cleanName) throw new Error("Vui lòng nhập tên hiển thị");
+  if (!cleanEmail || !cleanEmail.includes("@")) throw new Error("Địa chỉ email không hợp lệ");
+  if (!password || password.length < 6) throw new Error("Mật khẩu phải chứa ít nhất 6 ký tự");
+
+  const accounts = getStoredAccounts();
+  const existing = accounts.find((a) => a.email === cleanEmail);
+  if (existing) {
+    throw new Error("Email này đã được đăng ký trên hệ thống.");
+  }
+
+  const passwordHash = await hashPassword(password);
+  const newUser: UserProfile = {
+    id: `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    email: cleanEmail,
+    name: cleanName,
+    targetLevel,
+    dailyGoalCards: 10,
+    streakDays: 1,
+    lastActiveDate: new Date().toISOString().split("T")[0],
+    createdAt: new Date().toISOString(),
+    isCloudSynced: false,
+    enrolledDeckIds: [], // Trạng thái mới tinh: chưa đăng ký bộ từ nào
+  };
+
+  accounts.push({
+    id: newUser.id,
+    email: cleanEmail,
+    passwordHash,
+    profile: newUser,
+  });
+
+  saveStoredAccounts(accounts);
+  setActiveUser(newUser);
+
+  recordStudyActivity({
+    type: "card_created",
+    title: "Khởi tạo tài khoản",
+    description: `Chào mừng ${cleanName} gia nhập LingoPulse AI!`,
+  }, newUser.id);
+
+  return newUser;
+}
+
+/**
+ * Signs in with an existing local account
+ */
+export async function loginLocalUser(email: string, password: string): Promise<UserProfile> {
+  const cleanEmail = email.trim().toLowerCase();
+  const passwordHash = await hashPassword(password);
+
+  const accounts = getStoredAccounts();
+  const found = accounts.find((a) => a.email === cleanEmail);
+
+  if (!found) {
+    throw new Error("Không tìm thấy tài khoản với email này.");
+  }
+
+  if (found.passwordHash !== passwordHash) {
+    throw new Error("Mật khẩu không chính xác.");
+  }
+
+  setActiveUser(found.profile);
+  return found.profile;
+}
+
+/**
+ * Unified Cloud Login (Supabase Cloud primary, with local fallback for testing)
+ */
+export async function loginUser(email: string, password: string): Promise<UserProfile> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await signInWithEmail(email, password);
+    if (error) {
+      throw new Error(error.message || "Đăng nhập thất bại");
+    }
+    if (!data.user) {
+      throw new Error("Không tìm thấy thông tin tài khoản");
+    }
+    return syncSupabaseSessionToLocalUser(data.user);
+  }
+  return loginLocalUser(email, password);
+}
+
+/**
+ * Unified Cloud Registration (Supabase Cloud primary, with local fallback for testing)
+ */
+export async function registerUser(
+  name: string,
+  email: string,
+  password: string,
+  targetLevel: TargetProficiencyLevel = "IELTS 6.5"
+): Promise<UserProfile> {
+  if (isSupabaseConfigured()) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+    if (!cleanName) throw new Error("Vui lòng nhập tên hiển thị");
+    if (!cleanEmail || !cleanEmail.includes("@")) throw new Error("Địa chỉ email không hợp lệ");
+    if (!password || password.length < 6) throw new Error("Mật khẩu phải chứa ít nhất 6 ký tự");
+
+    const { data, error } = await signUpWithEmail(cleanEmail, password, {
+      name: cleanName,
+      full_name: cleanName,
+      target_level: targetLevel,
+    });
+    if (error) {
+      throw new Error(error.message || "Đăng ký thất bại");
+    }
+    if (!data.user) {
+      throw new Error("Tài khoản đã tạo thành công! Kiểm tra email để xác nhận.");
+    }
+    const profile = syncSupabaseSessionToLocalUser(data.user);
+    profile.name = cleanName;
+    profile.targetLevel = targetLevel;
+    setActiveUser(profile);
+    return profile;
+  }
+  return registerLocalUser(name, email, password, targetLevel);
+}
+
+/**
+ * Instant 1-click Demo/Guest login for evaluation
+ */
+export function loginDemoUser(): UserProfile {
+  setActiveUser(DEMO_USER);
+  return DEMO_USER;
+}
+
+/**
+ * Automatically bridges an authenticated Supabase user session to a local UserProfile
+ */
+export function syncSupabaseSessionToLocalUser(supabaseUser: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, any>;
+}): UserProfile {
+  const email = (supabaseUser.email || "").trim().toLowerCase();
+  const name =
+    supabaseUser.user_metadata?.full_name ||
+    supabaseUser.user_metadata?.name ||
+    (email ? email.split("@")[0] : "Learner");
+
+  const accounts = getStoredAccounts();
+  const existingIndex = accounts.findIndex((a) => a.email === email);
+
+  let profile: UserProfile;
+
+  const meta = supabaseUser.user_metadata || {};
+
+  if (existingIndex !== -1) {
+    profile = {
+      ...accounts[existingIndex].profile,
+      isCloudSynced: true,
+      email,
+      name: accounts[existingIndex].profile.name || name,
+      targetLevel: (meta.target_level as TargetProficiencyLevel) || accounts[existingIndex].profile.targetLevel || "IELTS 7.5+",
+      dailyGoalCards: meta.daily_goal_cards || accounts[existingIndex].profile.dailyGoalCards || 15,
+      enrolledDeckIds: Array.from(new Set([
+        ...(accounts[existingIndex].profile.enrolledDeckIds || []),
+        ...(Array.isArray(meta.enrolled_deck_ids) ? meta.enrolled_deck_ids : []),
+      ])),
+    };
+    accounts[existingIndex].profile = profile;
+    saveStoredAccounts(accounts);
+  } else {
+    profile = {
+      id: supabaseUser.id || `user-${Date.now()}`,
+      email,
+      name,
+      targetLevel: (meta.target_level as TargetProficiencyLevel) || "IELTS 7.5+",
+      dailyGoalCards: meta.daily_goal_cards || 15,
+      streakDays: 1,
+      lastActiveDate: new Date().toISOString().split("T")[0],
+      createdAt: new Date().toISOString(),
+      isCloudSynced: true,
+      enrolledDeckIds: Array.isArray(meta.enrolled_deck_ids) ? meta.enrolled_deck_ids : [],
+    };
+    accounts.push({
+      id: profile.id,
+      email,
+      passwordHash: "supabase-cloud-auth",
+      profile,
+    });
+    saveStoredAccounts(accounts);
+  }
+
+  // Restore cloud activities if local storage is empty
+  if (Array.isArray(meta.study_activities) && meta.study_activities.length > 0) {
+    const storage = getStorage();
+    if (storage) {
+      try {
+        const raw = storage.getItem(ACTIVITIES_STORAGE_KEY);
+        const localList = raw ? JSON.parse(raw) : [];
+        if (localList.length === 0) {
+          storage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(meta.study_activities));
+        }
+      } catch {
+        // Ignore
+      }
+    }
+  }
+
+  setActiveUser(profile);
+  return profile;
+}
+
+/**
+ * Logs out the active user and clears active session
+ */
+export async function logoutUser(): Promise<void> {
+  if (isSupabaseConfigured()) {
+    try {
+      await supabaseSignOut();
+    } catch {
+      // Ignore
+    }
+  }
+  setActiveUser(null);
+}
+
+/**
+ * Updates profile settings (name, avatar, target proficiency, daily goal)
+ */
+export async function updateUserProfile(updates: Partial<UserProfile>): Promise<UserProfile> {
+  const current = getActiveUser();
+  if (!current) throw new Error("Chưa có tài khoản đăng nhập");
+
+  const updated: UserProfile = {
+    ...current,
+    ...updates,
+  };
+
+  setActiveUser(updated);
+
+  // Sync update to stored accounts if local
+  const accounts = getStoredAccounts();
+  const index = accounts.findIndex((a) => a.id === current.id);
+  if (index !== -1) {
+    accounts[index].profile = updated;
+    saveStoredAccounts(accounts);
+  }
+
+  // Sync profile metadata to Supabase Cloud
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase();
+    if (sb) {
+      sb.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          sb.auth.updateUser({
+            data: {
+              name: updated.name,
+              target_level: updated.targetLevel,
+              daily_goal_cards: updated.dailyGoalCards,
+            },
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+  }
+
+  return updated;
+}
+
+/**
+ * Records a study activity event into the user's personal timeline
+ */
+export function recordStudyActivity(
+  activity: Omit<StudyActivity, "id" | "timestamp" | "userId">,
+  customUserId?: string
+): StudyActivity {
+  const activeUser = getActiveUser();
+  const userId = customUserId || activeUser?.id || "anonymous-learner";
+
+  const newActivity: StudyActivity = {
+    id: `act-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    userId,
+    type: activity.type,
+    title: activity.title,
+    description: activity.description,
+    metadata: activity.metadata,
+    timestamp: new Date().toISOString(),
+  };
+
+  const storage = getStorage();
+  let updatedList: StudyActivity[] = [newActivity];
+  if (!storage) {
+    memoryActivities = [newActivity, ...memoryActivities].slice(0, 100);
+    updatedList = memoryActivities;
+  } else {
+    try {
+      const raw = storage.getItem(ACTIVITIES_STORAGE_KEY);
+      const list: StudyActivity[] = raw ? JSON.parse(raw) : [];
+      updatedList = [newActivity, ...list].slice(0, 100); // Keep last 100 activities
+      storage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(updatedList));
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  // Sync recent activities (up to 50) to Supabase Cloud User Metadata
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase();
+    if (sb) {
+      sb.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          sb.auth.updateUser({
+            data: {
+              study_activities: updatedList.slice(0, 50),
+            },
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+  }
+
+  return newActivity;
+}
+
+/**
+ * Fetches the recent study activities for a user
+ */
+export function getUserActivities(userId?: string): StudyActivity[] {
+  const storage = getStorage();
+  const activeUser = getActiveUser();
+  const targetUserId = userId || activeUser?.id;
+
+  if (!storage) {
+    if (!targetUserId) return memoryActivities.slice(0, 20);
+    return memoryActivities.filter((a) => a.userId === targetUserId).slice(0, 20);
+  }
+
+  try {
+    const raw = storage.getItem(ACTIVITIES_STORAGE_KEY);
+    if (!raw) return [];
+    const allActivities: StudyActivity[] = JSON.parse(raw);
+    if (!targetUserId) return allActivities.slice(0, 20);
+    return allActivities.filter((a) => a.userId === targetUserId).slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Computes personalized learning metrics and vocabulary stats for the user
+ */
+export function getUserPersonalStats(userId?: string): UserPersonalStats {
+  const cards: Card[] = getLocalCards(userId);
+  const activities = getUserActivities(userId);
+
+  const totalWords = cards.length;
+  const masteredWords = cards.filter((c) => c.status === "mastered").length;
+  const learningWords = cards.filter((c) => c.status === "learning").length;
+  const newWords = cards.filter((c) => c.status === "new").length;
+
+  const speechActivities = activities.filter((a) => a.type === "speech_practice");
+  const totalSpeakingAttempts = speechActivities.length;
+
+  let totalScores = 0;
+  let scoredCount = 0;
+  for (const act of speechActivities) {
+    if (act.metadata?.score && typeof act.metadata.score === "number") {
+      totalScores += act.metadata.score;
+      scoredCount++;
+    }
+  }
+
+  const avgPronScore = scoredCount > 0 ? Math.round(totalScores / scoredCount) : 0;
+  const retentionRate = totalWords > 0 ? Math.round(((masteredWords + learningWords * 0.5) / totalWords) * 100) : 100;
+
+  return {
+    totalWords,
+    masteredWords,
+    learningWords,
+    newWords,
+    totalSpeakingAttempts,
+    avgPronScore,
+    totalStudyDays: getActiveUser()?.streakDays || 1,
+    retentionRate,
+  };
+}

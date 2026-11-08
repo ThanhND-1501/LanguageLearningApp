@@ -23,7 +23,7 @@ export function DictationMode({ cards, onRateCard, onFinishSession }: DictationM
     if (currentCard && !checked) {
       playNativePronunciation(currentCard.exampleSentence || currentCard.term);
     }
-  }, [currentIndex, currentCard]);
+  }, [currentIndex, currentCard, checked]);
 
   const handlePlayAudio = () => {
     if (currentCard) {
@@ -125,7 +125,7 @@ export function DictationMode({ cards, onRateCard, onFinishSession }: DictationM
                   {isCorrect ? "Xuất sắc! Bạn đã nghe đúng 100%." : "Câu gốc tham chiếu:"}
                 </p>
                 <p className="text-sm mt-1 font-medium">
-                  "{currentCard.exampleSentence || currentCard.term}"
+                  &ldquo;{currentCard.exampleSentence || currentCard.term}&rdquo;
                 </p>
                 {currentCard.exampleTranslation && (
                   <p className="text-xs text-slate-500 mt-1 italic">

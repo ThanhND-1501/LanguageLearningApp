@@ -1,26 +1,518 @@
 // ==============================================================================
-// Azure AI Speech Pronunciation Assessment Integration & Engine
-// Decodes and calculates Accuracy, Fluency, Completeness, and Prosody metrics
+// Pronunciation Assessment & Speech Analysis Multi-Provider Engine
+// Tier 1: OpenPronounce (Local Wav2Vec2 + DTW Phoneme Engine - 100% Free & Local)
+// Tier 2: Google Gemini 2.5 Flash Multimodal Audio (Zero-cost Cloud fallback)
+// Tier 3: Groq Whisper Cloud (Whisper-large-v3 ultra-fast STT + phonetic evaluation)
+// Tier 4: Azure AI Speech Services (Standard REST API if configured)
+// Tier 5: Local Heuristic Simulator Fallback (100% offline developer testing)
 // ==============================================================================
 
 import { PronScoreResult, WordScore } from "@/types";
 
 /**
- * Assesses pronunciation against reference text or user transcript.
- * If AZURE_SPEECH_KEY is provided in environment variables, calls Azure Speech REST API.
- * Otherwise, runs high-fidelity phoneme alignment heuristic simulation for development.
+ * Returns a 0-score evaluation when no speech / silence is detected
+ */
+export function createSilentPronResult(
+  referenceText: string,
+  provider = "Phát hiện âm thanh rỗng (Silence Detection)",
+  audioSizeBytes = 0,
+  latencyMs = 0
+): PronScoreResult {
+  const targetWords = referenceText
+    .toLowerCase()
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  return {
+    pronScore: 0,
+    accuracyScore: 0,
+    fluencyScore: 0,
+    completenessScore: 0,
+    prosodyScore: 0,
+    provider,
+    recognizedTranscript: "(Không phát hiện âm thanh giọng nói)",
+    audioSizeBytes,
+    latencyMs,
+    wordScores: targetWords.map((word) => ({
+      word,
+      score: 0,
+      accuracyScore: 0,
+      errorType: "Omission" as const,
+    })),
+  };
+}
+
+/**
+ * Assesses pronunciation using Google Gemini Multimodal Audio
+ * Listens directly to the user's recorded audio and evaluates phonetics, fluency, completeness & prosody
+ */
+async function assessWithGeminiAudio(
+  audioBlob: Blob,
+  referenceText: string,
+  geminiKey: string,
+  startTime: number
+): Promise<PronScoreResult | null> {
+  try {
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Data = buffer.toString("base64");
+
+    let mimeType = audioBlob.type || "audio/webm";
+    if (mimeType.includes(";")) {
+      mimeType = mimeType.split(";")[0].trim();
+    }
+    if (!mimeType || mimeType === "application/octet-stream") {
+      mimeType = "audio/webm";
+    }
+
+    const prompt = `You are an expert IELTS and CEFR English pronunciation examiner and speech analysis AI.
+The student was asked to speak the following reference text:
+"${referenceText}"
+
+Listen carefully to the student's attached audio recording.
+
+CRITICAL RULES ON SILENCE / INAUDIBLE RECORDINGS:
+- If the audio is silent, empty, inaudible, contains no human speech, or the student did NOT speak, you MUST set pronScore: 0, accuracyScore: 0, fluencyScore: 0, completenessScore: 0, prosodyScore: 0, recognizedTranscript: "(Không phát hiện giọng nói)", and mark ALL words as errorType: "Omission" with score: 0.
+- NEVER invent, assume, or award positive scores if the user did not audibly pronounce the words in the audio.
+
+If speech is present:
+1. recognizedTranscript: Transcribe faithfully the exact English words or sounds you heard the student utter in the audio recording.
+2. accuracyScore: Phoneme precision, clarity of consonants, vowels, and word endings (e.g. /s/, /t/, /ed/).
+3. fluencyScore: Speech pace, rhythm, lack of unnatural pauses or excessive hesitation.
+4. completenessScore: Proportion of words in the reference text clearly uttered.
+5. prosodyScore: Sentence stress, intonation (pitch variation), and natural expression.
+6. pronScore: Weighted overall score (accuracy*0.4 + fluency*0.2 + completeness*0.2 + prosody*0.2).
+
+For EACH individual word in the reference text:
+- word: The word from the reference text
+- score: 0-100 phoneme accuracy for this specific word
+- accuracyScore: 0-100 score
+- errorType: "None" (if good), "Mispronunciation" (if mispronounced or unclear), "Omission" (if skipped or silent), or "Insertion".
+
+Return STRICT JSON only without any markdown formatting or code blocks:
+{
+  "recognizedTranscript": "words heard from audio",
+  "pronScore": 85,
+  "accuracyScore": 84,
+  "fluencyScore": 86,
+  "completenessScore": 95,
+  "prosodyScore": 83,
+  "wordScores": [
+    {
+      "word": "example",
+      "score": 85,
+      "accuracyScore": 85,
+      "errorType": "None"
+    }
+  ]
+}`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType,
+                    data: base64Data,
+                  },
+                },
+                { text: prompt },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.2,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      console.warn("Gemini Audio Assessment HTTP error status:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) return null;
+
+    const parsed = JSON.parse(rawText);
+    if (typeof parsed.pronScore === "number" && Array.isArray(parsed.wordScores)) {
+      return {
+        pronScore: Math.min(100, Math.max(0, Math.round(parsed.pronScore))),
+        accuracyScore: Math.min(100, Math.max(0, Math.round(parsed.accuracyScore || parsed.pronScore))),
+        fluencyScore: Math.min(100, Math.max(0, Math.round(parsed.fluencyScore || parsed.pronScore))),
+        completenessScore: Math.min(100, Math.max(0, Math.round(parsed.completenessScore || 100))),
+        prosodyScore: Math.min(100, Math.max(0, Math.round(parsed.prosodyScore || parsed.pronScore))),
+        provider: "Google Gemini 2.5 Flash Audio (Multimodal)",
+        recognizedTranscript: parsed.recognizedTranscript || "",
+        latencyMs: Date.now() - startTime,
+        audioSizeBytes: audioBlob.size,
+        wordScores: parsed.wordScores.map((w: any) => ({
+          word: String(w.word || ""),
+          score: Math.min(100, Math.max(0, Math.round(w.score ?? 80))),
+          accuracyScore: Math.min(100, Math.max(0, Math.round(w.accuracyScore ?? w.score ?? 80))),
+          errorType: w.errorType || (w.score < 60 ? "Mispronunciation" : "None"),
+        })),
+      };
+    }
+  } catch (err) {
+    console.warn("Gemini Audio Assessment error, trying fallback provider:", err);
+  }
+  return null;
+}
+
+/**
+ * Assesses pronunciation using Groq Whisper-large-v3 transcription
+ */
+async function assessWithGroqWhisper(
+  audioBlob: Blob,
+  referenceText: string,
+  groqKey: string,
+  startTime: number
+): Promise<PronScoreResult | null> {
+  try {
+    const formData = new FormData();
+    formData.append("file", audioBlob, "speech.webm");
+    formData.append("model", "whisper-large-v3");
+    formData.append("response_format", "verbose_json");
+    formData.append("temperature", "0");
+
+    const response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${groqKey}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      console.warn("Groq Whisper API HTTP error:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const transcribedText = (data.text || "").trim();
+    // If Whisper detects no speech (empty transcription), it was silence
+    if (!transcribedText) {
+      return createSilentPronResult(referenceText, "Groq Whisper-large-v3", audioBlob.size, Date.now() - startTime);
+    }
+
+    const sim = simulatePronAssessment(referenceText, transcribedText);
+    return {
+      ...sim,
+      provider: "Groq Whisper-large-v3",
+      recognizedTranscript: transcribedText,
+      latencyMs: Date.now() - startTime,
+      audioSizeBytes: audioBlob.size,
+    };
+  } catch (err) {
+    console.warn("Groq Whisper Speech Assessment failed:", err);
+  }
+  return null;
+}
+
+/**
+ * Evaluates Prosody score (0 - 100) from acoustic pitch (F0 contour) and energy variations.
+ * Follows speech prosody standards: natural pitch intonation + dynamic stress rhythm.
+ */
+function calculateProsodyFromContour(prosody?: { f0?: number[]; energy?: number[] }): number {
+  if (!prosody) return 75;
+
+  const f0List = (prosody.f0 || []).filter((v) => typeof v === "number" && v > 50 && v < 500);
+  const energyList = (prosody.energy || []).filter((v) => typeof v === "number" && v > 0);
+
+  // 1. Pitch Variation (Intonation contour naturalness)
+  let pitchScore = 75;
+  if (f0List.length >= 5) {
+    const meanF0 = f0List.reduce((a, b) => a + b, 0) / f0List.length;
+    const varianceF0 = f0List.reduce((a, b) => a + Math.pow(b - meanF0, 2), 0) / f0List.length;
+    const stdF0 = Math.sqrt(varianceF0);
+
+    // Natural English intonation standard deviation: 18 - 45 Hz
+    if (stdF0 >= 18 && stdF0 <= 45) {
+      pitchScore = Math.min(100, Math.round(85 + ((stdF0 - 18) / 27) * 15));
+    } else if (stdF0 < 18) {
+      // Flat, monotone speech (robotic tone)
+      pitchScore = Math.max(30, Math.round(30 + (stdF0 / 18) * 55));
+    } else {
+      // Overly erratic or noisy pitch
+      pitchScore = Math.max(50, Math.round(85 - ((stdF0 - 45) / 35) * 35));
+    }
+  }
+
+  // 2. Energy Variation (Sentence stress & syllable dynamic range)
+  let energyScore = 75;
+  if (energyList.length >= 5) {
+    const meanEnergy = energyList.reduce((a, b) => a + b, 0) / energyList.length;
+    const varianceEnergy = energyList.reduce((a, b) => a + Math.pow(b - meanEnergy, 2), 0) / energyList.length;
+    const stdEnergy = Math.sqrt(varianceEnergy);
+
+    // Dynamic contrast between stressed & unstressed syllables (scale 0-250, target std ~ 25-55)
+    if (stdEnergy >= 25) {
+      energyScore = Math.min(100, Math.round(80 + Math.min(1, (stdEnergy - 25) / 30) * 20));
+    } else {
+      energyScore = Math.max(35, Math.round(35 + (stdEnergy / 25) * 45));
+    }
+  }
+
+  return Math.min(100, Math.max(0, Math.round(pitchScore * 0.6 + energyScore * 0.4)));
+}
+
+/**
+ * Assesses pronunciation using OpenPronounce (Local Wav2Vec2 + DTW Phoneme Engine)
+ * Runs 100% locally on localhost:8000, 100% open-source, private & zero-cost
+ */
+async function assessWithOpenPronounce(
+  audioBlob: Blob,
+  referenceText: string,
+  startTime: number
+): Promise<PronScoreResult | null> {
+  const serviceUrl = process.env.OPENPRONOUNCE_URL || "http://127.0.0.1:8000";
+  try {
+    const formData = new FormData();
+    formData.append("file", audioBlob, "speech.webm");
+    formData.append("expected_text", referenceText);
+    formData.append("lang", "en");
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+    const response = await fetch(`${serviceUrl}/pronunciation`, {
+      method: "POST",
+      body: formData,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.warn("OpenPronounce API HTTP error status:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    if (typeof data.score === "number") {
+      const differences = data.differences || {};
+      const phonemeErrorRate = differences.phoneme_error_rate ?? 0;
+      const acousticDistance = data.acoustic_distance ?? 10;
+
+      // 1. Accuracy: Standard phoneme accuracy (100 * (1 - Phoneme Error Rate))
+      const accuracyScore = Math.min(100, Math.max(0, Math.round(100 * (1 - phonemeErrorRate))));
+
+      // 2. Prosody: True acoustic F0 pitch intonation & stress energy dynamics
+      const prosodyScore = calculateProsodyFromContour(data.prosody);
+
+      // 3. Word-level scores & error classification (International Assessment Standard)
+      const targetWords = referenceText
+        .toLowerCase()
+        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+        .split(/\s+/)
+        .filter(Boolean);
+
+      const rawErrors: Array<{
+        position?: number;
+        word?: string;
+        expected?: string;
+        actual?: string;
+        confidence?: number;
+        phones?: Array<{ expected: string; heard: string; confidence: number }>;
+      }> = differences.errors || [];
+
+      // Map errors by normalized word
+      const errorMap = new Map<string, (typeof rawErrors)[0]>();
+      for (const err of rawErrors) {
+        if (err.word) {
+          errorMap.set(err.word.toLowerCase(), err);
+        }
+      }
+
+      const wordsWithErrors: string[] = (differences.words_with_errors || []).map((w: string) =>
+        w.toLowerCase()
+      );
+      const recognizedWords = (data.transcribe || "")
+        .toLowerCase()
+        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+        .split(/\s+/)
+        .filter(Boolean);
+
+      let omittedWordsCount = 0;
+
+      const wordScores: WordScore[] = targetWords.map((word) => {
+        const errorDetail = errorMap.get(word);
+        const hasError = wordsWithErrors.includes(word) || !!errorDetail;
+        const wasRecognized = recognizedWords.includes(word);
+
+        // Case A: Omission - Word was completely skipped or not uttered
+        const isOmission =
+          (!wasRecognized && hasError && (!errorDetail?.actual || errorDetail.actual.trim() === "")) ||
+          (errorDetail?.phones && errorDetail.phones.length > 0 && errorDetail.phones.every((p) => !p.heard || p.heard.trim() === ""));
+
+        if (isOmission) {
+          omittedWordsCount++;
+          return {
+            word,
+            score: 0,
+            accuracyScore: 0,
+            errorType: "Omission" as const,
+          };
+        }
+
+        // Case B: Mispronunciation - Word was spoken but has phoneme defects
+        if (hasError && errorDetail) {
+          let wordAccuracy = 50;
+          if (Array.isArray(errorDetail.phones) && errorDetail.phones.length > 0) {
+            // Compute real word accuracy from individual phoneme error confidences
+            const sumAccuracy = errorDetail.phones.reduce((acc, p) => {
+              const conf = typeof p.confidence === "number" ? p.confidence : 1.0;
+              return acc + Math.max(0, 100 * (1 - conf));
+            }, 0);
+            wordAccuracy = Math.round(sumAccuracy / errorDetail.phones.length);
+          } else if (typeof errorDetail.confidence === "number") {
+            wordAccuracy = Math.round(Math.max(0, 100 * (1 - errorDetail.confidence)));
+          }
+
+          const score = Math.min(80, Math.max(25, wordAccuracy));
+          return {
+            word,
+            score,
+            accuracyScore: score,
+            errorType: "Mispronunciation" as const,
+          };
+        }
+
+        // Case C: None - Word was uttered accurately with correct phonemes
+        // High fidelity baseline (88-98) adjusted by global acoustic alignment
+        const acousticPenalty = Math.max(0, acousticDistance - 6.0) * 1.5;
+        const baseWordScore = Math.min(98, Math.max(88, Math.round(96 - acousticPenalty)));
+        return {
+          word,
+          score: baseWordScore,
+          accuracyScore: baseWordScore,
+          errorType: "None" as const,
+        };
+      });
+
+      // 4. Completeness: Proportion of target words uttered (100% when all words read, 0% when silent)
+      const completenessScore = targetWords.length > 0
+        ? Math.min(100, Math.max(0, Math.round(((targetWords.length - omittedWordsCount) / targetWords.length) * 100)))
+        : 100;
+
+      // 5. Fluency: Normalized DTW acoustic distance (Speechocean calibrated range: 6.0 to 15.0)
+      let fluencyScore = 0;
+      if (completenessScore > 0) {
+        const rawFluency = 100 * (1 - Math.max(0, acousticDistance - 6.0) / 9.0);
+        fluencyScore = Math.min(100, Math.max(0, Math.round(rawFluency)));
+      }
+
+      // 6. Overall PronScore: Azure Speech Standard weighting (40% Acc + 20% Flu + 20% Comp + 20% Pros)
+      const overallScore = Math.min(
+        100,
+        Math.max(
+          0,
+          Math.round(
+            accuracyScore * 0.4 +
+            fluencyScore * 0.2 +
+            completenessScore * 0.2 +
+            prosodyScore * 0.2
+          )
+        )
+      );
+
+      return {
+        pronScore: overallScore,
+        accuracyScore,
+        fluencyScore,
+        completenessScore,
+        prosodyScore,
+        provider: "OpenPronounce (Local Wav2Vec2 + DTW)",
+        recognizedTranscript: data.transcribe || differences.transcribe || "",
+        latencyMs: Date.now() - startTime,
+        audioSizeBytes: audioBlob.size,
+        wordScores,
+      };
+    }
+  } catch (err) {
+    console.warn("OpenPronounce local service unavailable, trying next provider:", err);
+  }
+  return null;
+}
+
+/**
+ * Assesses pronunciation against reference text with multi-provider failover:
+ * 1. OpenPronounce (Local Wav2Vec2 + DTW Phoneme Engine - 100% Free & Local)
+ * 2. Google Gemini 2.5 Flash Audio (Multimodal Native)
+ * 3. Groq Whisper (Ultra-fast transcription)
+ * 4. Azure Speech (if valid key)
+ * 5. Local Heuristic Simulator
  */
 export async function assessPronunciation(
   audioBlob: Blob,
   referenceText: string,
   userTranscript?: string
 ): Promise<PronScoreResult> {
+  const startTime = Date.now();
+  // If recording is empty or less than 1KB (header only with no audio bytes), return 0
+  if (!audioBlob || audioBlob.size < 1000) {
+    return createSilentPronResult(
+      referenceText,
+      "Phát hiện tệp âm thanh rỗng (< 1KB)",
+      audioBlob?.size || 0,
+      Date.now() - startTime
+    );
+  }
+
+  // 1. Try Local OpenPronounce Engine (Priority 1: Replaces commercial models completely)
+  const openPronounceScore = await assessWithOpenPronounce(audioBlob, referenceText, startTime);
+  if (openPronounceScore) {
+    return openPronounceScore;
+  }
+
+  // 2. Try Google Gemini Audio (Multimodal)
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const isGeminiValid =
+    geminiKey &&
+    !geminiKey.includes("your_gemini_api_key_here") &&
+    geminiKey.length > 10;
+
+  if (isGeminiValid) {
+    const geminiScore = await assessWithGeminiAudio(audioBlob, referenceText, geminiKey, startTime);
+    if (geminiScore) {
+      return geminiScore;
+    }
+  }
+
+  // 3. Try Groq Whisper
+  const groqKey = process.env.GROQ_API_KEY;
+  const isGroqValid =
+    groqKey &&
+    !groqKey.includes("your_groq_api_key_here") &&
+    groqKey.startsWith("gsk_");
+
+  if (isGroqValid) {
+    const groqScore = await assessWithGroqWhisper(audioBlob, referenceText, groqKey, startTime);
+    if (groqScore) {
+      return groqScore;
+    }
+  }
+
+  // 4. Try Azure Speech if key is real and valid (not placeholder)
   const azureKey = process.env.AZURE_SPEECH_KEY;
   const azureRegion = process.env.AZURE_SPEECH_REGION || "eastus";
+  const isAzureValid =
+    azureKey &&
+    !azureKey.includes("your_azure_speech_key_here") &&
+    azureKey.length > 10;
 
-  if (azureKey) {
+  if (isAzureValid) {
     try {
-      // Azure Speech Pronunciation Assessment via REST
       const pronAssessmentParams = {
         ReferenceText: referenceText,
         GradingSystem: "HundredMark",
@@ -63,18 +555,27 @@ export async function assessPronunciation(
             fluencyScore: Math.round(nBest.FluencyScore || 86),
             completenessScore: Math.round(nBest.CompletenessScore || 100),
             prosodyScore: Math.round(nBest.ProsodyScore || 83),
+            provider: "Azure AI Speech Services",
+            recognizedTranscript: data.DisplayText || nBest.Display || referenceText,
+            latencyMs: Date.now() - startTime,
+            audioSizeBytes: audioBlob.size,
             wordScores: words,
           };
         }
       }
     } catch (err) {
-      console.warn("Azure Speech API request failed, falling back to local scoring heuristic:", err);
+      console.warn("Azure Speech API request failed:", err);
     }
   }
 
-  // Developer Fallback & Heuristic Simulator:
-  // Analyzes words in reference vs transcript and generates realistic scores
-  return simulatePronAssessment(referenceText, userTranscript);
+  // 5. Developer Fallback & Heuristic Simulator
+  const fallbackResult = simulatePronAssessment(referenceText, userTranscript);
+  return {
+    ...fallbackResult,
+    provider: "Local Heuristic Simulator",
+    latencyMs: Date.now() - startTime,
+    audioSizeBytes: audioBlob.size,
+  };
 }
 
 /**
@@ -90,11 +591,20 @@ export function simulatePronAssessment(
     .split(/\s+/)
     .filter(Boolean);
 
-  const wordsSpoken = (userTranscript || referenceText)
+  // If user transcript is explicitly provided as empty string, it signifies silence
+  if (userTranscript !== undefined && userTranscript.trim() === "") {
+    return createSilentPronResult(referenceText);
+  }
+
+  const wordsSpoken = (userTranscript !== undefined ? userTranscript : referenceText)
     .toLowerCase()
     .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
     .split(/\s+/)
     .filter(Boolean);
+
+  if (wordsSpoken.length === 0) {
+    return createSilentPronResult(referenceText);
+  }
 
   const wordScores: WordScore[] = targetWords.map((word) => {
     const isPresent = wordsSpoken.includes(word);
@@ -130,6 +640,33 @@ export function simulatePronAssessment(
     fluencyScore,
     completenessScore,
     prosodyScore,
+    provider: "Local Heuristic Simulator",
+    recognizedTranscript: userTranscript !== undefined ? userTranscript : referenceText,
     wordScores,
   };
+}
+
+/**
+ * Checks if the local OpenPronounce daemon is running and healthy
+ */
+export async function checkOpenPronounceHealth(): Promise<{ online: boolean; message: string; url: string }> {
+  const serviceUrl = process.env.OPENPRONOUNCE_URL || "http://127.0.0.1:8000";
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch(`${serviceUrl}/languages`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      return { online: true, message: "OpenPronounce engine is online & ready (Tier 1 Default)", url: serviceUrl };
+    }
+    return { online: false, message: `OpenPronounce returned status ${res.status}`, url: serviceUrl };
+  } catch (err: any) {
+    return {
+      online: false,
+      message: `OpenPronounce offline (${err.message || "ECONNREFUSED"}). Run 'npm run openpronounce:start'`,
+      url: serviceUrl,
+    };
+  }
 }

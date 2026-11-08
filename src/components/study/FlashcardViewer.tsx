@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, SRSRating } from "@/types";
 import { Volume2, RotateCcw, Check, Sparkles, HelpCircle } from "lucide-react";
 import { playNativePronunciation } from "@/lib/audio";
@@ -22,6 +22,19 @@ export function FlashcardViewer({ cards, onRateCard, onFinishSession }: Flashcar
     setIsFlipped(false);
   }, [currentIndex]);
 
+  const handleRate = useCallback(
+    (rating: SRSRating) => {
+      if (!currentCard) return;
+      onRateCard(currentCard.id, rating);
+      if (currentIndex < cards.length - 1) {
+        setCurrentIndex((prev) => prev + 1);
+      } else {
+        if (onFinishSession) onFinishSession();
+      }
+    },
+    [currentCard, onRateCard, currentIndex, cards.length, onFinishSession]
+  );
+
   // Keyboard shortcut listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -38,17 +51,7 @@ export function FlashcardViewer({ cards, onRateCard, onFinishSession }: Flashcar
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFlipped, currentIndex]);
-
-  const handleRate = (rating: SRSRating) => {
-    if (!currentCard) return;
-    onRateCard(currentCard.id, rating);
-    if (currentIndex < cards.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      if (onFinishSession) onFinishSession();
-    }
-  };
+  }, [isFlipped, handleRate]);
 
   const handlePlayAudio = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -152,7 +155,7 @@ export function FlashcardViewer({ cards, onRateCard, onFinishSession }: Flashcar
                     Ngữ cảnh thực tế
                   </p>
                   <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-                    "{currentCard.exampleSentence}"
+                    &ldquo;{currentCard.exampleSentence}&rdquo;
                   </p>
                   {currentCard.exampleTranslation && (
                     <p className="mt-1 text-xs text-slate-500 italic">

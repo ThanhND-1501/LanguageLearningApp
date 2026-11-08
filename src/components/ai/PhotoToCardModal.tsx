@@ -184,6 +184,7 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
             <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-brand-400 transition-colors dark:border-slate-800">
               {imagePreview ? (
                 <div className="space-y-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={imagePreview}
                     alt="Preview"
@@ -286,7 +287,7 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
                         {card.definition}
                       </p>
                       <p className="text-[11px] text-slate-400 italic mt-0.5">
-                        "{card.exampleSentence}"
+                        &ldquo;{card.exampleSentence}&rdquo;
                       </p>
                     </div>
                   </div>
