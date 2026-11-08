@@ -13,6 +13,7 @@ import {
 } from "@/lib/storage";
 import { getActiveUser, recordStudyActivity } from "@/lib/auth";
 import { DeckCard } from "@/components/deck/DeckCard";
+import { TaxonomyExplorer } from "@/components/deck/TaxonomyExplorer";
 import { PhotoToCardModal } from "@/components/ai/PhotoToCardModal";
 import { DocumentUploadModal } from "@/components/deck/DocumentUploadModal";
 import {
@@ -26,10 +27,12 @@ import {
   Layers,
   ArrowRight,
   Info,
+  Compass,
 } from "lucide-react";
 
 export default function DecksPage() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [viewMode, setViewMode] = useState<"option1_taxonomy" | "option2_classic">("option1_taxonomy");
   const [activeTab, setActiveTab] = useState<"personal" | "global">("personal");
   const [personalDecks, setPersonalDecks] = useState<Deck[]>([]);
   const [globalDecks, setGlobalDecks] = useState<Deck[]>([]);
@@ -229,7 +232,58 @@ export default function DecksPage() {
         </div>
       </div>
 
-      {/* Tabs Navigation */}
+      {/* ------------------------------------------------------------------ */}
+      {/* VIEW MODE SWITCHER: OPTION 1 (Phân cấp) vs OPTION 2 (Bộ thẻ gốc)   */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-1.5 bg-slate-100/90 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => setViewMode("option1_taxonomy")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              viewMode === "option1_taxonomy"
+                ? "bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-700"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            <Compass className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+            <span>Option 1: Lộ trình Phân Cấp (Chứng chỉ ➔ Chủ đề ➔ Level)</span>
+            <span className="px-1.5 py-0.2 bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300 rounded-md text-[10px] font-black uppercase">
+              Mặc định
+            </span>
+          </button>
+
+          <button
+            onClick={() => setViewMode("option2_classic")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              viewMode === "option2_classic"
+                ? "bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-700"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            <Layers className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <span>Option 2: Thư viện Bộ thẻ gốc ({globalDecks.length})</span>
+          </button>
+        </div>
+
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 px-3 hidden lg:block">
+          {viewMode === "option1_taxonomy"
+            ? "Đang lọc theo ma trận chuẩn: Chứng chỉ ➔ Chủ đề ➔ Khung CEFR"
+            : "Đang xem danh mục theo 88 bộ tài liệu gốc"}
+        </div>
+      </div>
+
+      {/* RENDER VIEW ACCORDING TO VIEW MODE */}
+      {viewMode === "option1_taxonomy" ? (
+        <TaxonomyExplorer
+          decks={globalDecks}
+          cards={cards}
+          currentUser={currentUser}
+          onEnroll={handleEnroll}
+          onRefresh={refreshData}
+        />
+      ) : (
+        <>
+          {/* Tabs Navigation */}
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800">
         <button
           onClick={() => setActiveTab("personal")}
@@ -414,6 +468,8 @@ export default function DecksPage() {
             </div>
           )}
         </div>
+      )}
+        </>
       )}
 
       {/* Manual Create Deck Modal */}
