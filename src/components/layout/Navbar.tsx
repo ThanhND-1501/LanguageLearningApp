@@ -1,146 +1,158 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  BookOpen,
-  Sparkles,
-  Mic,
-  MessageSquare,
-  Layers,
-  Flame,
-  User as UserIcon,
-} from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { BookOpen, Home, Mic, MessageSquare, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isSupabaseConfigured, getSessionUser } from "@/lib/supabase";
-import { getActiveUser, syncSupabaseSessionToLocalUser } from "@/lib/auth";
-import type { User } from "@supabase/supabase-js";
-import { UserProfile } from "@/types";
+import { useSession } from "@/hooks/useSession";
+import { Logo } from "@/components/ui/Logo";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { buttonClass } from "@/components/ui/button";
+
+const APP_NAV = [
+  { href: "/home", label: "Hôm nay", icon: Home },
+  { href: "/decks", label: "Thư viện", icon: BookOpen },
+  { href: "/speaking", label: "Luyện nói", icon: Mic },
+  { href: "/conversation", label: "Hội thoại", icon: MessageSquare },
+];
+
+function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
+function NavSearch() {
+  const router = useRouter();
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (e.key !== "/" || t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName)) return;
+      e.preventDefault();
+      ref.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <form
+      role="search"
+      className="relative ml-auto hidden w-72 lg:block"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const q = ref.current?.value.trim() || "";
+        router.push(q ? `/decks?q=${encodeURIComponent(q)}` : "/decks");
+      }}
+    >
+      <label htmlFor="nav-search" className="sr-only">Tìm bộ từ</label>
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
+      <input ref={ref} id="nav-search" type="search" placeholder="Tìm bộ từ…" className="field h-10 bg-subtle pl-9 pr-9 text-sm" />
+      <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-line bg-surface px-1.5 font-sans text-xs text-mute">/</kbd>
+    </form>
+  );
+}
 
 export function Navbar() {
   const pathname = usePathname();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeProfile, setActiveProfile] = useState<UserProfile | null>(null);
-  const isCloudConfigured = isSupabaseConfigured();
+  const { user, loading } = useSession();
 
-  useEffect(() => {
-    if (isCloudConfigured) {
-      getSessionUser().then((user) => {
-        setCurrentUser(user);
-        if (user && user.email) {
-          const synced = syncSupabaseSessionToLocalUser(user);
-          setActiveProfile(synced);
-        } else {
-          setActiveProfile(null);
-        }
-      });
-    } else {
-      const localUser = getActiveUser();
-      setActiveProfile(localUser);
-    }
-  }, [isCloudConfigured, pathname]);
+  // The root route only redirects; keep the bar out of the way.
+  if (pathname === "/") return null;
 
-  const navItems = activeProfile
-    ? [
-        { href: "/home", label: "Tổng quan", icon: Layers },
-        { href: "/decks", label: "Kho từ vựng", icon: BookOpen },
-        { href: "/speaking", label: "Luyện phản xạ nói", icon: Mic },
-        { href: "/conversation", label: "Hội thoại AI", icon: MessageSquare },
-        { href: "/welcome", label: "Giới thiệu", icon: Sparkles },
-      ]
-    : [
-        { href: "/welcome", label: "Giới thiệu", icon: Sparkles },
-        { href: "/decks", label: "Kho từ vựng", icon: BookOpen },
-        { href: "/speaking", label: "Luyện phản xạ nói", icon: Mic },
-        { href: "/conversation", label: "Hội thoại AI", icon: MessageSquare },
-      ];
-
-  return (
-    <>
-      <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-8">
-            <Link
-              href={activeProfile ? "/home" : "/welcome"}
-              className="flex items-center gap-2.5 font-bold text-xl text-slate-900 dark:text-white"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white shadow-md shadow-brand-500/20">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <span>
-                LingoPulse{" "}
-                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300">
-                  AI
-                </span>
-              </span>
+  if (!user) {
+    return (
+      <header className="sticky top-0 z-40 border-b border-line/60 bg-surface/85 backdrop-blur-md supports-[backdrop-filter]:bg-surface/75">
+        <div className="mx-auto flex h-[72px] max-w-[1180px] items-center gap-9 px-5 sm:px-8">
+          <Logo href="/welcome" />
+          <nav className="hidden items-center gap-7 text-[15px] font-medium text-ink-2 md:flex" aria-label="Giới thiệu">
+            <Link href="/welcome#cach-hoc" className="transition-colors hover:text-ink">Cách học</Link>
+            <Link href="/decks" className="transition-colors hover:text-ink">Thư viện bộ từ</Link>
+            <Link href="/welcome#luyen-noi" className="transition-colors hover:text-ink">Luyện nói</Link>
+          </nav>
+          <div className={cn("ml-auto flex items-center gap-1.5 transition-opacity sm:gap-2", loading && "opacity-0")}>
+            <ThemeToggle />
+            <Link href="/login" className={buttonClass("ghost", "sm", "hidden sm:inline-flex")}>
+              Đăng nhập
             </Link>
-
-            <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300"
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* Unified User Account / Login */}
-            {activeProfile || currentUser ? (
-              <Link
-                href="/profile"
-                className="flex items-center gap-2 p-1 sm:px-3 sm:py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-950/60 dark:hover:text-brand-300 transition-colors border border-slate-200 dark:border-slate-700"
-                title="Hồ sơ cá nhân & Thống kê"
-              >
-                <div className="h-6 w-6 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                  {(activeProfile?.name || currentUser?.email || "U").charAt(0).toUpperCase()}
-                </div>
-                <span className="hidden sm:inline text-xs font-semibold max-w-[120px] truncate text-slate-800 dark:text-slate-200">
-                  {activeProfile?.name || currentUser?.email}
-                </span>
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-xs"
-              >
-                <UserIcon className="h-3.5 w-3.5" />
-                <span>Đăng nhập</span>
-              </Link>
-            )}
-
-            {/* Study streak badge */}
-            {activeProfile && (
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
-                <Flame className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-                <span>{activeProfile?.streakDays || 1} ngày</span>
-              </div>
-            )}
-
-            <Link
-              href={activeProfile ? "/home" : "/login"}
-              className="hidden lg:inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-xl hover:bg-brand-700 shadow-sm transition-colors"
-            >
-              {activeProfile ? "Ôn tập hôm nay" : "Bắt đầu học"}
+            <Link href="/login?mode=signup" className={buttonClass("primary", "sm")}>
+              Bắt đầu miễn phí
             </Link>
           </div>
         </div>
       </header>
+    );
+  }
+
+  const initial = (user.name || user.email || "U").charAt(0).toUpperCase();
+
+  return (
+    <>
+      <header className="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur-md supports-[backdrop-filter]:bg-surface/80">
+        <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-8 px-5 sm:px-8">
+          <Logo href="/home" />
+          <nav className="hidden items-center gap-1 md:flex" aria-label="Chính">
+            {APP_NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={isActive(pathname, item.href) ? "page" : undefined}
+                className={cn(
+                  "rounded-lg px-3.5 py-2 text-[15px] font-medium transition-colors",
+                  isActive(pathname, item.href)
+                    ? "bg-primary-soft text-primary-ink"
+                    : "text-ink-2 hover:bg-subtle hover:text-ink"
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          <NavSearch />
+          <div className="ml-auto flex items-center gap-2 lg:ml-0">
+            <ThemeToggle />
+            <Link
+              href="/profile"
+              title="Hồ sơ của bạn"
+              aria-label={`Hồ sơ của ${user.name}`}
+              className={cn(
+                "grid h-9 w-9 place-items-center rounded-full bg-primary-soft text-sm font-semibold text-primary-ink ring-offset-2 ring-offset-surface transition-shadow hover:ring-2 hover:ring-primary/40",
+                isActive(pathname, "/profile") && "ring-2 ring-primary"
+              )}
+            >
+              {initial}
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Phone: thumb-reachable tab bar */}
+      <nav
+        aria-label="Chính"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+      >
+        <div className="grid grid-cols-4">
+          {APP_NAV.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex h-16 flex-col items-center justify-center gap-1 text-[11.5px] font-medium",
+                  active ? "text-primary-ink" : "text-mute"
+                )}
+              >
+                <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.3 : 1.9} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </>
   );
 }

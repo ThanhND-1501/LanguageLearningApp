@@ -42,24 +42,24 @@ describe("Utility Functions (utils.ts)", () => {
   });
 
   describe("getScoreBadgeColor", () => {
-    it("should return emerald badge for score >= 80", () => {
+    it("should return good-tone badge for score >= 80", () => {
       const badge = getScoreBadgeColor(85);
-      assert.ok(badge.bg.includes("emerald"));
-      assert.ok(badge.text.includes("emerald"));
+      assert.ok(badge.bg.includes("good"));
+      assert.ok(badge.text.includes("good"));
       assert.strictEqual(badge.label, "Xuất sắc (Native-like)");
     });
 
-    it("should return amber badge for score between 60 and 79", () => {
+    it("should return fair-tone badge for score between 60 and 79", () => {
       const badge = getScoreBadgeColor(72);
-      assert.ok(badge.bg.includes("amber"));
-      assert.ok(badge.text.includes("amber"));
+      assert.ok(badge.bg.includes("fair"));
+      assert.ok(badge.text.includes("fair"));
       assert.strictEqual(badge.label, "Khá (Understandable)");
     });
 
-    it("should return rose badge for score < 60", () => {
+    it("should return poor-tone badge for score < 60", () => {
       const badge = getScoreBadgeColor(55);
-      assert.ok(badge.bg.includes("rose"));
-      assert.ok(badge.text.includes("rose"));
+      assert.ok(badge.bg.includes("poor"));
+      assert.ok(badge.text.includes("poor"));
       assert.strictEqual(badge.label, "Cần cải thiện");
     });
   });

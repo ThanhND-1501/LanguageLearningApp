@@ -1,41 +1,41 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Mail,
-  Lock,
-  User as UserIcon,
-  Sparkles,
-  ArrowRight,
-  CheckCircle2,
-  AlertCircle,
-  Brain,
-  Mic,
-  BookOpen,
-  Cloud,
-  Compass,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
 import {
   getActiveUser,
   loginUser,
   registerUser,
   logoutUser,
+  loginDemoUser,
   syncSupabaseSessionToLocalUser,
 } from "@/lib/auth";
 import { isSupabaseConfigured, signInWithOAuth, getSessionUser } from "@/lib/supabase";
 import { TargetProficiencyLevel, UserProfile } from "@/types";
+import { buttonClass } from "@/components/ui/button";
+import { ReadingLearner } from "@/components/illustrations";
+import { cn } from "@/lib/utils";
+
+const LEVELS: { value: TargetProficiencyLevel; label: string }[] = [
+  { value: "B1", label: "B1 · Giao tiếp hằng ngày" },
+  { value: "IELTS 6.5", label: "IELTS 6.5 · Trung cấp trên (B2)" },
+  { value: "IELTS 7.5+", label: "IELTS 7.5+ · Nâng cao (C1)" },
+  { value: "TOEIC 800+", label: "TOEIC 800+ · Môi trường công sở" },
+  { value: "C2", label: "C2 · Gần như bản xứ" },
+];
 
 export default function LoginPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [checking, setChecking] = useState(true);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
 
-  // Form State
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [targetLevel, setTargetLevel] = useState<TargetProficiencyLevel>("IELTS 7.5+");
 
   const [isLoading, setIsLoading] = useState(false);
@@ -45,41 +45,37 @@ export default function LoginPage() {
   const isCloudAvailable = isSupabaseConfigured();
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("mode") === "signup") setMode("signup");
+
     if (isSupabaseConfigured()) {
-      getSessionUser().then((sbUser) => {
-        if (sbUser) {
-          const synced = syncSupabaseSessionToLocalUser(sbUser);
-          setCurrentUser(synced);
-        } else {
-          setCurrentUser(null);
-        }
-      });
+      getSessionUser()
+        .then((sbUser) => setCurrentUser(sbUser ? syncSupabaseSessionToLocalUser(sbUser) : null))
+        .finally(() => setChecking(false));
     } else {
-      const user = getActiveUser();
-      setCurrentUser(user);
+      setCurrentUser(getActiveUser());
+      setChecking(false);
     }
   }, []);
+
+  const switchMode = (next: "signin" | "signup") => {
+    setMode(next);
+    setErrorMessage(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
     setIsLoading(true);
-
     try {
-      if (mode === "signin") {
-        const user = await loginUser(email, password);
-        setCurrentUser(user);
-        setSuccessMessage(`Chào mừng bạn trở lại, ${user.name}!`);
-        setTimeout(() => router.push("/home"), 700);
-      } else {
-        const user = await registerUser(name, email, password, targetLevel);
-        setCurrentUser(user);
-        setSuccessMessage(`Đăng ký tài khoản thành công! Chào mừng ${user.name}.`);
-        setTimeout(() => router.push("/home"), 700);
-      }
+      const user =
+        mode === "signin"
+          ? await loginUser(email, password)
+          : await registerUser(name, email, password, targetLevel);
+      setSuccessMessage(mode === "signin" ? `Chào mừng trở lại, ${user.name}.` : `Đã tạo tài khoản. Chào ${user.name}!`);
+      setTimeout(() => router.push("/home"), 600);
     } catch (err: any) {
-      setErrorMessage(err.message || "Xác thực không thành công.");
+      setErrorMessage(err.message || "Không đăng nhập được. Kiểm tra lại email và mật khẩu.");
     } finally {
       setIsLoading(false);
     }
@@ -90,291 +86,175 @@ export default function LoginPage() {
       setIsLoading(true);
       await signInWithOAuth(provider);
     } catch (err: any) {
-      setErrorMessage(err.message || "Không thể kết nối dịch vụ đăng nhập");
+      setErrorMessage(err.message || "Không kết nối được dịch vụ đăng nhập. Thử lại sau.");
       setIsLoading(false);
     }
+  };
+
+  const handleDemo = () => {
+    loginDemoUser();
+    router.push("/home");
   };
 
   const handleLogout = async () => {
     await logoutUser();
     setCurrentUser(null);
-    setSuccessMessage("Đã đăng xuất tài khoản.");
+    setSuccessMessage("Bạn đã đăng xuất.");
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-slate-950">
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl">
-        {/* Left Visual Hero / Highlights */}
-        <div className="lg:col-span-5 p-8 sm:p-10 bg-gradient-to-br from-brand-600 via-indigo-600 to-indigo-800 text-white flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-brand-400/20 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="relative z-10 space-y-6">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur text-white shadow-sm">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <span className="font-bold text-xl tracking-tight">LingoPulse AI</span>
+    <div className="mx-auto grid min-h-[calc(100vh-72px)] max-w-[1180px] items-center gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[1fr_1fr] lg:gap-16">
+      <div className="mx-auto w-full max-w-[420px]">
+        {checking ? (
+          <div className="flex justify-center py-20" role="status" aria-label="Đang kiểm tra phiên đăng nhập">
+            <Loader2 className="h-6 w-6 animate-spin text-mute" />
+          </div>
+        ) : currentUser ? (
+          <div>
+            <div className="grid h-14 w-14 place-items-center rounded-full bg-primary-soft text-xl font-bold text-primary-ink">
+              {currentUser.name.charAt(0).toUpperCase()}
             </div>
-
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold leading-snug">
-                Nâng Tầm Vốn Từ & Phản Xạ Nói Bản Xứ
-              </h1>
-              <p className="mt-2 text-indigo-100 text-sm leading-relaxed">
-                Hệ thống học tập cá nhân hóa với thuật toán Spaced Repetition (SM-2) và công nghệ chấm điểm phát âm PronScore.
-              </p>
-            </div>
-
-            {/* Feature Bullets */}
-            <div className="space-y-3.5 pt-2">
-              <div className="flex items-start gap-3 text-xs sm:text-sm text-indigo-50">
-                <Brain className="h-5 w-5 text-indigo-200 shrink-0 mt-0.5" />
-                <span>Kho từ vựng cá nhân hóa tự động ghi nhớ tiến độ theo đường cong quên.</span>
-              </div>
-              <div className="flex items-start gap-3 text-xs sm:text-sm text-indigo-50">
-                <Mic className="h-5 w-5 text-indigo-200 shrink-0 mt-0.5" />
-                <span>Chấm điểm phát âm PronScore chuẩn ngữ điệu & trọng âm từng từ.</span>
-              </div>
-              <div className="flex items-start gap-3 text-xs sm:text-sm text-indigo-50">
-                <BookOpen className="h-5 w-5 text-indigo-200 shrink-0 mt-0.5" />
-                <span>Tra từ điển Cambridge tự động hóa kèm audio bản xứ và câu ví dụ.</span>
-              </div>
+            <h1 className="mt-5 text-[28px] font-bold tracking-tight">Bạn đang đăng nhập</h1>
+            <p className="mt-1.5 text-ink-2">
+              {currentUser.name} · {currentUser.email}
+            </p>
+            <div className="mt-7 flex flex-col gap-2.5">
+              <Link href="/home" className={buttonClass("primary", "md")}>Vào trang học</Link>
+              <button type="button" onClick={handleLogout} className={buttonClass("secondary", "md")}>
+                Đăng xuất để dùng tài khoản khác
+              </button>
             </div>
           </div>
+        ) : (
+          <div>
+            <h1 className="text-[32px] font-bold leading-tight tracking-tight">
+              {mode === "signin" ? "Chào mừng trở lại" : "Tạo tài khoản LingoPulse"}
+            </h1>
+            <p className="mt-2 text-ink-2">
+              {mode === "signin"
+                ? "Đăng nhập để tiếp tục ôn những thẻ đến hạn hôm nay."
+                : "Tài khoản mới bắt đầu trống. Bạn tự chọn bộ từ để học."}
+            </p>
 
-          <div className="relative z-10 pt-8 mt-6 border-t border-white/15 flex items-center justify-between text-xs text-indigo-200">
-            <span>Local-First & Cloud Ready</span>
-            <span className="flex items-center gap-1">
-              <Cloud className="h-3.5 w-3.5" />
-              <span>Đồng bộ đa thiết bị</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Right Authentication Form */}
-        <div className="lg:col-span-7 p-8 sm:p-10 flex flex-col justify-center">
-          {currentUser ? (
-            <div className="space-y-6 text-center py-6">
-              <div className="h-20 w-20 mx-auto rounded-full bg-brand-50 dark:bg-brand-950/60 flex items-center justify-center text-brand-600 dark:text-brand-300 font-bold text-2xl border border-brand-200 dark:border-brand-800 shadow-sm">
-                {currentUser.name.charAt(0).toUpperCase()}
-              </div>
-
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Đang đăng nhập
-                </span>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                  {currentUser.name}
-                </h2>
-                <p className="text-sm text-slate-500">{currentUser.email}</p>
-                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Mục tiêu: {currentUser.targetLevel}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 max-w-md mx-auto">
-                <Link
-                  href="/home"
-                  className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-md shadow-brand-500/20 transition-all"
-                >
-                  <Compass className="h-4 w-4" />
-                  <span>Vào Bảng Học Tập</span>
-                </Link>
-                <Link
-                  href="/profile"
-                  className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold transition-colors"
-                >
-                  Hồ sơ cá nhân
-                </Link>
+            <div role="tablist" aria-label="Chọn đăng nhập hoặc đăng ký" className="mt-7 grid grid-cols-2 rounded-xl bg-subtle p-1">
+              {(["signin", "signup"] as const).map((m) => (
                 <button
+                  key={m}
                   type="button"
-                  onClick={handleLogout}
-                  className="w-full sm:w-auto px-4 py-3 rounded-xl border border-transparent text-slate-500 hover:text-rose-600 hover:bg-rose-50 text-sm font-semibold transition-colors"
+                  role="tab"
+                  aria-selected={mode === m}
+                  onClick={() => switchMode(m)}
+                  className={cn(
+                    "h-9 rounded-lg text-sm font-semibold transition-colors",
+                    mode === m ? "bg-surface text-ink shadow-sm" : "text-mute hover:text-ink"
+                  )}
                 >
-                  Đăng xuất
+                  {m === "signin" ? "Đăng nhập" : "Đăng ký"}
                 </button>
-              </div>
+              ))}
             </div>
-          ) : (
-            <div>
-              {/* Header & Tabs */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {mode === "signin" ? "Đăng nhập tài khoản" : "Tạo tài khoản mới"}
-                  </h2>
-                  <span className="text-xs font-medium text-slate-400">Bước 1 / 1</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Lưu trữ từ vựng cá nhân, chuỗi học tập (streak) và lịch sử phát âm.
-                </p>
 
-                {/* Tab Switcher */}
-                <div className="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("signin");
-                      setErrorMessage(null);
-                    }}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                      mode === "signin"
-                        ? "bg-white text-brand-600 shadow-sm dark:bg-slate-900 dark:text-white"
-                        : "text-slate-600 dark:text-slate-400"
-                    }`}
-                  >
-                    Đăng nhập
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("signup");
-                      setErrorMessage(null);
-                    }}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                      mode === "signup"
-                        ? "bg-white text-brand-600 shadow-sm dark:bg-slate-900 dark:text-white"
-                        : "text-slate-600 dark:text-slate-400"
-                    }`}
-                  >
-                    Đăng ký tài khoản
-                  </button>
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate={false}>
+              {mode === "signup" && (
+                <div>
+                  <label htmlFor="name" className="label">Tên của bạn</label>
+                  <input id="name" className="field" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" placeholder="Nguyễn Minh Anh" />
                 </div>
+              )}
+              <div>
+                <label htmlFor="email" className="label">Email</label>
+                <input id="email" type="email" className="field" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="ban@email.com" />
               </div>
+              <div>
+                <label htmlFor="password" className="label">Mật khẩu</label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    className="field pr-11"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={mode === "signup" ? 6 : undefined}
+                    autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                    className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-mute hover:bg-subtle hover:text-ink"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {mode === "signup" && <p className="mt-1.5 text-[13px] text-mute">Ít nhất 6 ký tự.</p>}
+              </div>
+              {mode === "signup" && (
+                <div>
+                  <label htmlFor="level" className="label">Mục tiêu của bạn</label>
+                  <select id="level" className="field appearance-none bg-[length:16px] bg-[right_12px_center] bg-no-repeat pr-10" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235d6684' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }} value={targetLevel} onChange={(e) => setTargetLevel(e.target.value as TargetProficiencyLevel)}>
+                    {LEVELS.map((l) => (
+                      <option key={l.value} value={l.value}>{l.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-              {/* Feedback Notifications */}
               {errorMessage && (
-                <div className="mb-4 flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{errorMessage}</span>
-                </div>
+                <p role="alert" className="flex items-start gap-2 rounded-[10px] bg-poor-soft px-3.5 py-3 text-sm text-poor">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  {errorMessage}
+                </p>
               )}
-
               {successMessage && (
-                <div className="mb-4 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>{successMessage}</span>
-                </div>
+                <p role="status" className="flex items-start gap-2 rounded-[10px] bg-good-soft px-3.5 py-3 text-sm text-good">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  {successMessage}
+                </p>
               )}
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {mode === "signup" && (
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Tên của bạn:
-                    </label>
-                    <div className="relative mt-1">
-                      <UserIcon className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                      <input
-                        type="text"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Nguyễn Văn A"
-                        className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                      />
-                    </div>
-                  </div>
-                )}
+              <button type="submit" disabled={isLoading} className={buttonClass("primary", "md", "w-full")}>
+                {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {mode === "signin" ? "Đăng nhập" : "Tạo tài khoản"}
+              </button>
+            </form>
 
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Địa chỉ Email:
-                  </label>
-                  <div className="relative mt-1">
-                    <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="ban@example.com"
-                      className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                    />
-                  </div>
+            {isCloudAvailable && (
+              <>
+                <div className="my-6 flex items-center gap-3 text-[13px] text-mute">
+                  <span className="h-px flex-1 bg-line" />
+                  hoặc tiếp tục với
+                  <span className="h-px flex-1 bg-line" />
                 </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Mật khẩu:
-                  </label>
-                  <div className="relative mt-1">
-                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Ít nhất 6 ký tự"
-                      className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                    />
-                  </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button type="button" disabled={isLoading} onClick={() => handleOAuthLogin("google")} className={buttonClass("secondary", "md")}>Google</button>
+                  <button type="button" disabled={isLoading} onClick={() => handleOAuthLogin("github")} className={buttonClass("secondary", "md")}>GitHub</button>
                 </div>
+              </>
+            )}
 
-                {mode === "signup" && (
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Mục tiêu trình độ hướng tới:
-                    </label>
-                    <select
-                      value={targetLevel}
-                      onChange={(e) => setTargetLevel(e.target.value as TargetProficiencyLevel)}
-                      className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                    >
-                      <option value="IELTS 6.5">IELTS 6.5 (B2 Upper-Intermediate)</option>
-                      <option value="IELTS 7.5+">IELTS 7.5+ (C1 Advanced Mastery)</option>
-                      <option value="TOEIC 800+">TOEIC 800+ (Professional Workplace)</option>
-                      <option value="B1">B1 (Intermediate Everyday)</option>
-                      <option value="C2">C2 (Proficient / Near-Native)</option>
-                    </select>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-md shadow-brand-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
-                >
-                  <span>{isLoading ? "Đang xử lý..." : mode === "signin" ? "Đăng nhập" : "Đăng ký ngay"}</span>
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </form>
-
-              {/* OAuth Providers */}
-              {isCloudAvailable && (
-                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                  <div className="relative flex items-center justify-center">
-                    <span className="bg-white dark:bg-slate-900 px-2 text-[11px] font-medium text-slate-400">
-                      Hoặc tiếp tục với
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => handleOAuthLogin("google")}
-                      className="py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center transition-colors"
-                    >
-                      Google
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOAuthLogin("github")}
-                      className="py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center transition-colors"
-                    >
-                      GitHub
-                    </button>
-                  </div>
-                </div>
-              )}
+            <div className="mt-7 rounded-xl border border-line bg-surface p-4 text-sm text-ink-2">
+              Chỉ muốn xem thử?{" "}
+              <button type="button" onClick={handleDemo} className="font-semibold text-primary-ink hover:underline">
+                Vào tài khoản demo
+              </button>{" "}
+              có sẵn bộ từ và tiến độ mẫu.
             </div>
-          )}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden h-[min(640px,80vh)] flex-col justify-between rounded-3xl bg-primary-soft p-12 lg:flex">
+        <ReadingLearner className="mx-auto mt-6 h-auto w-[320px]" />
+        <div>
+          <p className="text-2xl font-bold leading-snug tracking-tight">
+            Ôn vài phút mỗi ngày.
+            <br />
+            Nói được nhiều hơn mỗi tuần.
+          </p>
+          <p className="mt-2 text-ink-2">Dữ liệu học lưu ngay trên máy của bạn, học được cả khi không có mạng.</p>
         </div>
       </div>
     </div>
   );
 }
-

@@ -2,25 +2,139 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme tokens: RGB channels so Tailwind opacity modifiers work. */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --bg: 246 247 251;
+  --surface: 255 255 255;
+  --subtle: 241 243 248;
+  --ink: 17 26 51;
+  --ink-2: 66 75 102;
+  --mute: 93 102 132;
+  --line: 228 231 240;
+  --line-strong: 205 211 227;
+
+  --primary: 36 87 245;
+  --primary-hover: 27 70 214;
+  --primary-soft: 237 242 255;
+  --primary-soft-hover: 223 231 255;
+  --primary-ink: 27 70 214;
+
+  --good: 23 121 74;
+  --good-soft: 232 246 238;
+  --fair: 149 92 0;
+  --fair-soft: 253 244 225;
+  --poor: 196 44 60;
+  --poor-soft: 253 236 238;
+
+  --deck-blue: 36 87 245;
+  --deck-teal: 11 118 108;
+  --deck-amber: 158 95 4;
+  --deck-rose: 196 50 90;
+  --deck-violet: 111 79 240;
+  --deck-green: 43 138 62;
+
+  --illus-fill: 255 255 255;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #090d16;
-    --foreground: #f8fafc;
+.dark {
+  --bg: 11 14 22;
+  --surface: 20 24 35;
+  --subtle: 27 32 46;
+  --ink: 233 236 245;
+  --ink-2: 190 197 216;
+  --mute: 146 155 181;
+  --line: 39 45 62;
+  --line-strong: 58 66 89;
+
+  --primary: 46 96 245;
+  --primary-hover: 74 118 250;
+  --primary-soft: 28 38 72;
+  --primary-soft-hover: 36 50 95;
+  --primary-ink: 143 170 255;
+
+  --good: 92 201 138;
+  --good-soft: 18 46 33;
+  --fair: 235 181 82;
+  --fair-soft: 52 39 14;
+  --poor: 255 128 140;
+  --poor-soft: 60 22 28;
+
+  --deck-blue: 92 132 255;
+  --deck-teal: 45 180 165;
+  --deck-amber: 222 160 52;
+  --deck-rose: 240 100 140;
+  --deck-violet: 150 124 255;
+  --deck-green: 88 190 106;
+
+  --illus-fill: 27 32 46;
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-bg text-ink antialiased;
+    font-feature-settings: "tnum" 1;
+    font-variant-numeric: tabular-nums;
+  }
+  ::selection {
+    background: rgb(var(--primary) / 0.22);
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--primary));
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  input,
+  textarea,
+  select {
+    caret-color: rgb(var(--primary));
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: rgb(var(--mute));
+    opacity: 1;
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  * {
+    scrollbar-color: rgb(var(--line-strong)) transparent;
+    scrollbar-width: thin;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-feature-settings: "rlig" 1, "calt" 1;
+@layer components {
+  .field {
+    @apply h-11 w-full rounded-[10px] border border-line bg-surface px-3.5 text-[15px] text-ink transition-colors duration-150 hover:border-line-strong focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-ink-2;
+  }
+  .panel {
+    @apply rounded-card border border-line bg-surface;
+  }
 }
 
-/* Custom smooth transitions for card flipping and interactive elements */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 3D card flip (study mode) */
 .perspective-1000 {
   perspective: 1000px;
 }

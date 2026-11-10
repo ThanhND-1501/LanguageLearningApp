@@ -53,3 +53,7 @@ __pycache__/
 .tmp/
 .vercel
 .env*
+
+# Impeccable UI design
+.impeccable/
+PRODUCT.md
