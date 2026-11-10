@@ -12,7 +12,13 @@ import {
   Card,
   Deck,
 } from "@/types";
-import { isSupabaseConfigured, getSupabase, signOut as supabaseSignOut } from "./supabase";
+import {
+  isSupabaseConfigured,
+  getSupabase,
+  signOut as supabaseSignOut,
+  signInWithEmail,
+  signUpWithEmail,
+} from "./supabase";
 import { getLocalCards, getLocalDecks } from "./storage";
 
 const ACCOUNTS_STORAGE_KEY = "lingopulse_accounts_v1";
@@ -233,11 +239,142 @@ export async function loginLocalUser(email: string, password: string): Promise<U
 }
 
 /**
+ * Unified Cloud Login (Supabase Cloud primary, with local fallback for testing)
+ */
+export async function loginUser(email: string, password: string): Promise<UserProfile> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await signInWithEmail(email, password);
+    if (error) {
+      throw new Error(error.message || "Đăng nhập thất bại");
+    }
+    if (!data.user) {
+      throw new Error("Không tìm thấy thông tin tài khoản");
+    }
+    return syncSupabaseSessionToLocalUser(data.user);
+  }
+  return loginLocalUser(email, password);
+}
+
+/**
+ * Unified Cloud Registration (Supabase Cloud primary, with local fallback for testing)
+ */
+export async function registerUser(
+  name: string,
+  email: string,
+  password: string,
+  targetLevel: TargetProficiencyLevel = "IELTS 6.5"
+): Promise<UserProfile> {
+  if (isSupabaseConfigured()) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+    if (!cleanName) throw new Error("Vui lòng nhập tên hiển thị");
+    if (!cleanEmail || !cleanEmail.includes("@")) throw new Error("Địa chỉ email không hợp lệ");
+    if (!password || password.length < 6) throw new Error("Mật khẩu phải chứa ít nhất 6 ký tự");
+
+    const { data, error } = await signUpWithEmail(cleanEmail, password, {
+      name: cleanName,
+      full_name: cleanName,
+      target_level: targetLevel,
+    });
+    if (error) {
+      throw new Error(error.message || "Đăng ký thất bại");
+    }
+    if (!data.user) {
+      throw new Error("Tài khoản đã tạo thành công! Kiểm tra email để xác nhận.");
+    }
+    const profile = syncSupabaseSessionToLocalUser(data.user);
+    profile.name = cleanName;
+    profile.targetLevel = targetLevel;
+    setActiveUser(profile);
+    return profile;
+  }
+  return registerLocalUser(name, email, password, targetLevel);
+}
+
+/**
  * Instant 1-click Demo/Guest login for evaluation
  */
 export function loginDemoUser(): UserProfile {
   setActiveUser(DEMO_USER);
   return DEMO_USER;
+}
+
+/**
+ * Automatically bridges an authenticated Supabase user session to a local UserProfile
+ */
+export function syncSupabaseSessionToLocalUser(supabaseUser: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, any>;
+}): UserProfile {
+  const email = (supabaseUser.email || "").trim().toLowerCase();
+  const name =
+    supabaseUser.user_metadata?.full_name ||
+    supabaseUser.user_metadata?.name ||
+    (email ? email.split("@")[0] : "Learner");
+
+  const accounts = getStoredAccounts();
+  const existingIndex = accounts.findIndex((a) => a.email === email);
+
+  let profile: UserProfile;
+
+  const meta = supabaseUser.user_metadata || {};
+
+  if (existingIndex !== -1) {
+    profile = {
+      ...accounts[existingIndex].profile,
+      isCloudSynced: true,
+      email,
+      name: accounts[existingIndex].profile.name || name,
+      targetLevel: (meta.target_level as TargetProficiencyLevel) || accounts[existingIndex].profile.targetLevel || "IELTS 7.5+",
+      dailyGoalCards: meta.daily_goal_cards || accounts[existingIndex].profile.dailyGoalCards || 15,
+      enrolledDeckIds: Array.from(new Set([
+        ...(accounts[existingIndex].profile.enrolledDeckIds || []),
+        ...(Array.isArray(meta.enrolled_deck_ids) ? meta.enrolled_deck_ids : []),
+      ])),
+    };
+    accounts[existingIndex].profile = profile;
+    saveStoredAccounts(accounts);
+  } else {
+    profile = {
+      id: supabaseUser.id || `user-${Date.now()}`,
+      email,
+      name,
+      targetLevel: (meta.target_level as TargetProficiencyLevel) || "IELTS 7.5+",
+      dailyGoalCards: meta.daily_goal_cards || 15,
+      streakDays: 1,
+      lastActiveDate: new Date().toISOString().split("T")[0],
+      createdAt: new Date().toISOString(),
+      isCloudSynced: true,
+      enrolledDeckIds: Array.isArray(meta.enrolled_deck_ids) ? meta.enrolled_deck_ids : [],
+    };
+    accounts.push({
+      id: profile.id,
+      email,
+      passwordHash: "supabase-cloud-auth",
+      profile,
+    });
+    saveStoredAccounts(accounts);
+  }
+
+  // Restore cloud activities if local storage is empty
+  if (Array.isArray(meta.study_activities) && meta.study_activities.length > 0) {
+    const storage = getStorage();
+    if (storage) {
+      try {
+        const raw = storage.getItem(ACTIVITIES_STORAGE_KEY);
+        const localList = raw ? JSON.parse(raw) : [];
+        if (localList.length === 0) {
+          storage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(meta.study_activities));
+        }
+      } catch {
+        // Ignore
+      }
+    }
+  }
+
+  setActiveUser(profile);
+  return profile;
 }
 
 /**
@@ -276,6 +413,24 @@ export async function updateUserProfile(updates: Partial<UserProfile>): Promise<
     saveStoredAccounts(accounts);
   }
 
+  // Sync profile metadata to Supabase Cloud
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase();
+    if (sb) {
+      sb.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          sb.auth.updateUser({
+            data: {
+              name: updated.name,
+              target_level: updated.targetLevel,
+              daily_goal_cards: updated.dailyGoalCards,
+            },
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+  }
+
   return updated;
 }
 
@@ -300,18 +455,35 @@ export function recordStudyActivity(
   };
 
   const storage = getStorage();
+  let updatedList: StudyActivity[] = [newActivity];
   if (!storage) {
     memoryActivities = [newActivity, ...memoryActivities].slice(0, 100);
-    return newActivity;
+    updatedList = memoryActivities;
+  } else {
+    try {
+      const raw = storage.getItem(ACTIVITIES_STORAGE_KEY);
+      const list: StudyActivity[] = raw ? JSON.parse(raw) : [];
+      updatedList = [newActivity, ...list].slice(0, 100); // Keep last 100 activities
+      storage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(updatedList));
+    } catch {
+      // Ignore storage errors
+    }
   }
 
-  try {
-    const raw = storage.getItem(ACTIVITIES_STORAGE_KEY);
-    const list: StudyActivity[] = raw ? JSON.parse(raw) : [];
-    const updated = [newActivity, ...list].slice(0, 100); // Keep last 100 activities
-    storage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(updated));
-  } catch {
-    // Ignore storage errors
+  // Sync recent activities (up to 50) to Supabase Cloud User Metadata
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase();
+    if (sb) {
+      sb.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          sb.auth.updateUser({
+            data: {
+              study_activities: updatedList.slice(0, 50),
+            },
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
   }
 
   return newActivity;

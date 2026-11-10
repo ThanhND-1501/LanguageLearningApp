@@ -3,8 +3,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card, Deck, SRSRating } from "@/types";
-import { getLocalDecks, getLocalCards, updateCardWithSRSRating } from "@/lib/storage";
+import { Card, Deck, SRSRating, UserProfile } from "@/types";
+import { getLocalDecks, getLocalCards, updateCardWithSRSRating, saveLocalCards } from "@/lib/storage";
+import { getActiveUser } from "@/lib/auth";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
+import { mapDbToDeck, mapDbToCard } from "@/lib/sync";
 import { recordStudyActivity } from "@/lib/auth";
 import { FlashcardViewer } from "@/components/study/FlashcardViewer";
 import { WriteMode } from "@/components/study/WriteMode";
@@ -23,6 +27,14 @@ export default function StudySessionPage() {
   const [deck, setDeck] = useState<Deck | null>(null);
   const [studyCards, setStudyCards] = useState<Card[]>([]);
   const [isFinished, setIsFinished] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  useEffect(() => {
+    const user = getActiveUser();
+    setCurrentUser(user);
+    setIsAuthChecking(false);
+  }, []);
 
   useEffect(() => {
     const allDecks = getLocalDecks();
@@ -32,10 +44,64 @@ export default function StudySessionPage() {
     const allCards = getLocalCards();
     const deckCards = allCards.filter((c) => c.deckId === deckId);
 
-    // Prioritize due cards first, then new cards
-    const now = Date.now();
-    const due = deckCards.filter((c) => c.status === "new" || new Date(c.nextReviewAt).getTime() <= now);
-    setStudyCards(due.length > 0 ? due : deckCards);
+    const setupCards = (cardList: Card[]) => {
+      const now = Date.now();
+      const due = cardList.filter((c) => c.status === "new" || new Date(c.nextReviewAt).getTime() <= now);
+      setStudyCards(due.length > 0 ? due : cardList);
+    };
+
+    if (deckCards.length > 0) {
+      setupCards(deckCards);
+    }
+
+    if (isSupabaseConfigured()) {
+      const sb = getSupabase();
+      if (sb) {
+        if (!currentDeck) {
+          sb.from("decks")
+            .select("*")
+            .eq("id", deckId)
+            .single()
+            .then(({ data, error }) => {
+              if (!error && data) setDeck(mapDbToDeck(data));
+            });
+        }
+
+        sb.from("cards")
+          .select("*")
+          .eq("deck_id", deckId)
+          .then(({ data, error }) => {
+            if (!error && data && data.length > 0) {
+              const cloudDeckCards = data.map(mapDbToCard);
+              // Smart merge: preserve more recent local reviews
+              const allStoredCards = getLocalCards();
+              const merged = cloudDeckCards.map((cloudCard) => {
+                const localCard = allStoredCards.find((c) => c.id === cloudCard.id);
+                if (localCard && localCard.lastReviewedAt) {
+                  const localTime = new Date(localCard.lastReviewedAt).getTime();
+                  const cloudTime = cloudCard.lastReviewedAt ? new Date(cloudCard.lastReviewedAt).getTime() : 0;
+                  if (localTime >= cloudTime) {
+                    return {
+                      ...cloudCard,
+                      status: localCard.status,
+                      repetition: localCard.repetition,
+                      easinessFactor: localCard.easinessFactor,
+                      intervalDays: localCard.intervalDays,
+                      nextReviewAt: localCard.nextReviewAt,
+                      lastReviewedAt: localCard.lastReviewedAt,
+                    };
+                  }
+                }
+                return cloudCard;
+              });
+
+              setupCards(merged);
+              const remaining = allStoredCards.filter((c) => c.deckId !== deckId);
+              saveLocalCards([...remaining, ...merged]);
+            }
+          });
+      }
+    }
   }, [deckId]);
 
   const handleRateCard = (cardId: string, rating: SRSRating) => {
@@ -55,6 +121,18 @@ export default function StudySessionPage() {
     const allCards = getLocalCards();
     setStudyCards(allCards.filter((c) => c.deckId === deckId));
   };
+
+  if (!isAuthChecking && !currentUser) {
+    return (
+      <AuthGuard
+        featureName="Ôn Tập Thuật Toán SM-2"
+        title="Đăng nhập để bắt đầu phiên học"
+        description="Thuật toán lặp lại ngắt quãng (SRS) cần lưu lại chỉ số Ease Factor, số lần lặp và chu kỳ ôn tập vào tài khoản cá nhân của bạn."
+        backHref={`/decks/${deckId}`}
+        backLabel="Xem danh sách từ trong bộ"
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 space-y-6">

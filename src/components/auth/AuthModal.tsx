@@ -10,6 +10,7 @@ import {
   getSessionUser,
 } from "@/lib/supabase";
 import { syncAll, SyncResult } from "@/lib/sync";
+import { syncSupabaseSessionToLocalUser, logoutUser } from "@/lib/auth";
 import {
   Cloud,
   CloudOff,
@@ -67,14 +68,22 @@ export function AuthModal({ onClose, onSyncComplete }: AuthModalProps) {
         const { data, error } = await signInWithEmail(email, password);
         if (error) throw error;
         setCurrentUser(data.user);
+        if (data.user) {
+          syncSupabaseSessionToLocalUser(data.user);
+        }
         setSuccessMsg("Đăng nhập thành công!");
         setActiveTab("sync");
+        if (onSyncComplete) onSyncComplete();
       } else {
         const { data, error } = await signUpWithEmail(email, password);
         if (error) throw error;
         setCurrentUser(data.user);
+        if (data.user) {
+          syncSupabaseSessionToLocalUser(data.user);
+        }
         setSuccessMsg("Tài khoản đã tạo thành công! Kiểm tra email để xác nhận.");
         setActiveTab("sync");
+        if (onSyncComplete) onSyncComplete();
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Xác thực thất bại");
@@ -98,9 +107,11 @@ export function AuthModal({ onClose, onSyncComplete }: AuthModalProps) {
     try {
       setIsLoading(true);
       await signOut();
+      await logoutUser();
       setCurrentUser(null);
       setSuccessMsg("Đã đăng xuất tài khoản.");
       setActiveTab("signin");
+      if (onSyncComplete) onSyncComplete();
     } catch (err: any) {
       setErrorMsg(err.message || "Không thể đăng xuất");
     } finally {
@@ -241,111 +252,29 @@ export function AuthModal({ onClose, onSyncComplete }: AuthModalProps) {
             </div>
           </div>
         ) : (
-          isConfigured && (
-            <div className="space-y-5">
-              {/* Tabs */}
-              <div className="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("signin")}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                    activeTab === "signin"
-                      ? "bg-white text-brand-600 shadow-sm dark:bg-slate-900 dark:text-white"
-                      : "text-slate-600 dark:text-slate-400"
-                  }`}
-                >
-                  Đăng nhập
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("signup")}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                    activeTab === "signup"
-                      ? "bg-white text-brand-600 shadow-sm dark:bg-slate-900 dark:text-white"
-                      : "text-slate-600 dark:text-slate-400"
-                  }`}
-                >
-                  Đăng ký tài khoản
-                </button>
-              </div>
-
-              {/* Form */}
-              <form onSubmit={handleEmailAuth} className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                    Email:
-                  </label>
-                  <div className="relative mt-1">
-                    <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="ban@example.com"
-                      className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                    Mật khẩu:
-                  </label>
-                  <div className="relative mt-1">
-                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-sm transition-all disabled:opacity-50"
-                >
-                  {isLoading
-                    ? "Đang xử lý..."
-                    : activeTab === "signin"
-                    ? "Đăng nhập"
-                    : "Đăng ký tài khoản mới"}
-                </button>
-              </form>
-
-              {/* OAuth Providers */}
-              <div className="pt-2">
-                <div className="relative flex items-center justify-center my-3">
-                  <div className="w-full border-t border-slate-200 dark:border-slate-800" />
-                  <span className="bg-white px-2 text-[11px] uppercase tracking-wider text-slate-400 dark:bg-slate-900 absolute">
-                    Hoặc đăng nhập với
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => handleOAuth("google")}
-                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    <span>Google</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOAuth("github")}
-                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    <span>GitHub</span>
-                  </button>
-                </div>
-              </div>
+          <div className="space-y-4 py-4 text-center">
+            <div className="h-14 w-14 mx-auto rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center dark:bg-brand-950/60 dark:text-brand-300">
+              <Cloud className="h-7 w-7" />
             </div>
-          )
+            <div>
+              <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                Chưa đăng nhập tài khoản
+              </h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                Vui lòng đăng nhập để đồng bộ kho 23.214 từ vựng và tiến độ học tập trên mọi thiết bị.
+              </p>
+            </div>
+            <div className="pt-2">
+              <a
+                href="/login"
+                onClick={onClose}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-md shadow-brand-500/20 transition-all"
+              >
+                <span>Chuyển đến trang Đăng nhập</span>
+                <Sparkles className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
         )}
       </div>
     </div>
