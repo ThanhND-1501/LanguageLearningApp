@@ -87,11 +87,11 @@ export default function WelcomePage() {
               </button>
             )}
           </div>
-          <p className="mt-4 text-sm text-mute">Học được cả khi không có mạng. Không cần thẻ thanh toán.</p>
+          {/* <p className="mt-4 text-sm text-mute">Học được cả khi không có mạng. Không cần thẻ thanh toán.</p> */}
         </div>
 
         <div className="relative h-[540px] rounded-3xl bg-primary-soft sm:h-[580px]" aria-label="Ví dụ minh họa: một thẻ từ và kết quả chấm phát âm">
-          <SpeakingLearner className="absolute right-6 top-5 hidden h-auto w-[170px] sm:block" />
+          {/* <SpeakingLearner className="absolute right-6 top-5 hidden h-auto w-[170px] sm:block" /> */}
           <div className="absolute left-4 top-6 w-[280px] animate-fade-up rounded-2xl border border-line bg-surface p-6 shadow-lift sm:left-9 sm:top-9 sm:w-[300px]">
             <div className="text-[12.5px] font-semibold text-mute">IELTS Academic · Anh → Việt</div>
             <div className="mt-1.5 text-[34px] font-bold tracking-tight">resilient</div>

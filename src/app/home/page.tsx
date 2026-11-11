@@ -10,7 +10,7 @@ import { useSession } from "@/hooks/useSession";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DeckCard } from "@/components/deck/DeckCard";
 import { buttonClass } from "@/components/ui/button";
-import { EmptyCards, LearnerWithCards } from "@/components/illustrations";
+import { LearnerWithCards } from "@/components/illustrations";
 import { deckBg, deckColor, isDue, reviewMinutes } from "@/lib/deck-style";
 import { cn } from "@/lib/utils";
 
@@ -197,7 +197,7 @@ export default function HomeDashboardPage() {
           )}
         </div>
         <div className="hidden place-items-center border-l border-line bg-primary-soft md:grid" aria-hidden="true">
-          {decks.length === 0 ? <EmptyCards className="h-auto w-[220px]" /> : <LearnerWithCards className="h-auto w-[250px]" />}
+          <LearnerWithCards className="h-auto w-[300px]" />
         </div>
       </section>
 

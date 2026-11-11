@@ -4,6 +4,7 @@
  * Replace freely; every illustration is decorative (aria-hidden).
  */
 import { cn } from "@/lib/utils";
+import { LEARNING_LANGUAGES_SVG_INNER } from "./learning-languages-svg";
 
 type P = { className?: string };
 
@@ -27,42 +28,25 @@ function Svg({ className, w, h, children }: P & { w: number; h: number; children
   );
 }
 
-/** Learner holding a small stack of flashcards. */
+/** Animated "Learning Languages" illustration used on the home page. */
 export function LearnerWithCards({ className }: P) {
   return (
-    <Svg className={className} w={260} h={230}>
-      <path d="M60 222c18-58 50-78 74-78s58 22 70 78" fill={FILL} />
-      <ellipse cx="190" cy="74" rx="34" ry="30" fill={SPOT} stroke="none" opacity=".9" />
-      <path d="M134 124c-20 0-34-16-33-37 1-20 15-34 34-33 19 1 31 17 30 36-1 20-13 34-31 34z" fill={FILL} />
-      <path d="M103 82c6-22 28-34 50-24 10 5 16 14 15 26-8-8-20-12-30-9-12 4-22 6-35 7z" fill="currentColor" />
-      <path d="M122 92v.5M146 92v.5" strokeWidth="3.4" />
-      <path d="M127 105c4 4 11 4 15 0" />
-      <g transform="rotate(-10 120 168)">
-        <rect x="96" y="148" width="68" height="46" rx="5" fill={FILL} />
-        <path d="M108 164h30M108 176h44" />
-      </g>
-      <g transform="rotate(8 150 158)">
-        <rect x="132" y="140" width="68" height="46" rx="5" fill={FILL} />
-        <path d="M146 158c4-6 10-6 14 0s10 6 14 0" stroke={SPOT} />
-        <path d="M146 172h36" />
-      </g>
-      <path d="M206 36l4-10M222 46l9-6M226 64h10" strokeWidth="2" />
-    </Svg>
+    <svg
+      id="freepik_stories-learning-languages"
+      xmlns="http://www.w3.org/2000/svg"
+      xmlnsXlink="http://www.w3.org/1999/xlink"
+      viewBox="0 0 500 500"
+      version="1.1"
+      aria-hidden="true"
+      className={cn("animated", className)}
+      dangerouslySetInnerHTML={{ __html: LEARNING_LANGUAGES_SVG_INNER }}
+    />
   );
 }
 
-/** Learner speaking, with sound lines. */
+/** Learner speaking, with sound lines (uses the animated learning-languages illustration). */
 export function SpeakingLearner({ className }: P) {
-  return (
-    <Svg className={className} w={190} h={200}>
-      <path d="M40 196c10-44 34-62 58-62s48 18 58 62" fill={FILL} />
-      <path d="M98 128c-19 0-32-15-31-35 1-19 14-32 32-31 18 1 30 16 29 34-1 19-12 32-30 32z" fill={FILL} />
-      <path d="M68 86c2-24 26-38 50-28 9 4 14 12 12 22-10-6-18-6-28-2-10 5-20 7-34 8z" fill="currentColor" />
-      <path d="M88 94v.5M110 94v.5" strokeWidth="3.4" />
-      <ellipse cx="100" cy="110" rx="6" ry="5" />
-      <path d="M136 66c10-6 16-16 16-26M146 80c14-4 24-12 28-24M146 98c12 0 22-4 30-10" stroke={SPOT} strokeWidth="2.6" />
-    </Svg>
-  );
+  return <LearnerWithCards className={className} />;
 }
 
 /** Learner reading at a desk, waving: used on sign-in. */
