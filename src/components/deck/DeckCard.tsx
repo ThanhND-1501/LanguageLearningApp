@@ -1,6 +1,9 @@
 import Link from "next/link";
-import { Clock, Play, Globe, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Deck, Card } from "@/types";
+import { cn } from "@/lib/utils";
+import { deckBg, deckColor, deckProgress, langCode, langPair } from "@/lib/deck-style";
+import { buttonClass } from "@/components/ui/button";
 
 interface DeckCardProps {
   deck: Deck;
@@ -10,159 +13,104 @@ interface DeckCardProps {
   isLoggedIn?: boolean;
 }
 
-export function DeckCard({
-  deck,
-  cards,
-  isEnrolled = true,
-  onEnroll,
-  isLoggedIn = false,
-}: DeckCardProps) {
-  const displayTotal = deck.totalCards && deck.totalCards > 0 ? deck.totalCards : cards.length;
-  const newCards = cards.filter((c) => c.status === "new").length;
-  const learningCards = cards.filter((c) => c.status === "learning").length;
-  const masteredCards = cards.filter((c) => c.status === "mastered").length;
+export function DeckSpine({ deck, className }: { deck: Deck; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "grid h-11 w-9 shrink-0 place-items-center rounded-md text-[12.5px] font-bold text-white dark:text-bg",
+        deckBg[deckColor(deck)],
+        className
+      )}
+      aria-hidden="true"
+    >
+      {langCode(deck.targetLang)}
+    </span>
+  );
+}
 
-  const now = Date.now();
-  const dueCards = cards.filter((c) => {
-    if (c.status === "new") return true;
-    return new Date(c.nextReviewAt).getTime() <= now;
-  }).length;
+/** New → learning → mastered, on one fixed blue ramp used everywhere. */
+export function MemoryRamp({ newCount, learning, mastered, className }: { newCount: number; learning: number; mastered: number; className?: string }) {
+  const total = newCount + learning + mastered;
+  return (
+    <div
+      className={cn("flex h-1.5 overflow-hidden rounded-full bg-subtle", className)}
+      role="img"
+      aria-label={`${mastered} đã thuộc, ${learning} đang học, ${newCount} mới`}
+    >
+      {total > 0 && (
+        <>
+          <i className="block bg-primary" style={{ flex: mastered }} />
+          <i className="block bg-primary/45" style={{ flex: learning }} />
+          <i className="block bg-line-strong" style={{ flex: newCount }} />
+        </>
+      )}
+    </div>
+  );
+}
 
-  const masteryPercent = cards.length > 0 ? Math.round((masteredCards / cards.length) * 100) : 0;
+export function DeckCard({ deck, cards, isEnrolled = true, onEnroll, isLoggedIn = false }: DeckCardProps) {
+  const total = deck.totalCards && deck.totalCards > 0 ? deck.totalCards : cards.length;
+  const p = deckProgress(cards);
+  const href = isLoggedIn ? `/decks/${deck.id}` : "/login";
+  const tracking = isLoggedIn && isEnrolled && cards.length > 0;
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-all dark:border-slate-800 dark:bg-slate-900 relative">
-      <div>
-        {/* Global badge or tags */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-3">
-          {deck.isGlobal && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800">
-              <Globe className="h-3 w-3" />
-              Bộ từ chung (Có sẵn)
-            </span>
-          )}
-
-          {deck.tags.map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-0.5 text-xs font-medium rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-            >
-              {tag}
-            </span>
-          ))}
-
-          {isLoggedIn && isEnrolled && dueCards > 0 && (
-            <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
-              <Clock className="h-3 w-3" />
-              {dueCards} cần ôn
-            </span>
-          )}
-        </div>
-
-        {/* Title & Description */}
-        <Link href={isLoggedIn ? `/decks/${deck.id}` : "/login"}>
-          <h3 className="text-lg font-bold text-slate-900 hover:text-brand-600 transition-colors dark:text-white">
-            {deck.title}
-          </h3>
-        </Link>
-        <p className="mt-2 text-sm text-slate-600 line-clamp-2 dark:text-slate-400">
-          {deck.description}
-        </p>
-
-        {/* Learning progress bar - only shown for logged in users */}
-        {isLoggedIn ? (
-          <div className="mt-5">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 font-medium">
-              <span>Tiến độ ghi nhớ</span>
-              <span>{isEnrolled && cards.length > 0 ? `${masteryPercent}%` : `${displayTotal} thẻ chuẩn`}</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden flex dark:bg-slate-800">
-              <div
-                className="bg-emerald-500 transition-all"
-                style={{ width: `${(masteredCards / (cards.length || 1)) * 100}%` }}
-                title={`Mastered: ${masteredCards}`}
-              />
-              <div
-                className="bg-amber-400 transition-all"
-                style={{ width: `${(learningCards / (cards.length || 1)) * 100}%` }}
-                title={`Learning: ${learningCards}`}
-              />
-              <div
-                className="bg-slate-300 dark:bg-slate-700 transition-all"
-                style={{ width: `${cards.length > 0 ? (newCards / (cards.length || 1)) * 100 : 100}%` }}
-                title={`New: ${cards.length > 0 ? newCards : displayTotal}`}
-              />
-            </div>
-
-            <div className="mt-3 flex items-center gap-3 text-xs text-slate-500">
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-700" />
-                {cards.length > 0 ? newCards : displayTotal} mới
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-amber-400" />
-                {learningCards} đang học
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                {masteredCards} đã thuộc
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-5">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-2 font-medium">
-              <span>Quy mô bộ từ</span>
-              <span className="font-semibold text-brand-600 dark:text-brand-400">{displayTotal} thẻ chuẩn</span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-              <div className="bg-brand-500/25 h-full w-full rounded-full" />
-            </div>
-            <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
-              <span>Đăng nhập để xem danh sách từ và bắt đầu học</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Action buttons */}
-      <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3">
-        <Link
-          href={isLoggedIn ? `/decks/${deck.id}` : "/login"}
-          className="text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-        >
-          Xem chi tiết ({displayTotal} thẻ)
-        </Link>
-
-        {isLoggedIn ? (
-          isEnrolled ? (
-            <Link
-              href={`/study/${deck.id}`}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 transition-colors shadow-sm"
-            >
-              <Play className="h-3.5 w-3.5 fill-white" />
-              Học ngay
+    <article className="group relative flex flex-col rounded-card border border-line bg-surface p-5 transition-[box-shadow,border-color] duration-200 hover:border-line-strong hover:shadow-raised">
+      <div className="flex items-start gap-3">
+        <DeckSpine deck={deck} />
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold leading-snug">
+            <Link href={href} className="after:absolute after:inset-0 after:rounded-card focus-visible:outline-none">
+              {deck.title}
             </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={onEnroll}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 transition-colors shadow-sm"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Đăng ký học bộ này
-            </button>
-          )
+          </h3>
+          <p className="mt-0.5 text-[13px] text-mute">
+            {langPair(deck)} · {total} thẻ
+          </p>
+        </div>
+      </div>
+
+      {deck.description && !tracking && (
+        <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-ink-2">{deck.description}</p>
+      )}
+
+      <div className="mt-auto pt-4">
+        {tracking ? (
+          <>
+            <MemoryRamp newCount={p.newCount} learning={p.learning} mastered={p.mastered} />
+            <div className="mt-3 flex items-center justify-between text-[13px] text-ink-2">
+              <span>{p.masteredPct}% đã thuộc</span>
+              {p.due > 0 ? (
+                <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-[12.5px] font-semibold text-primary-ink">
+                  {p.due} cần ôn
+                </span>
+              ) : (
+                <span className="rounded-full bg-subtle px-2.5 py-0.5 text-[12.5px] font-medium text-mute">Đã ôn xong</span>
+              )}
+            </div>
+          </>
         ) : (
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 transition-colors shadow-sm"
-          >
-            <Play className="h-3.5 w-3.5 fill-white" />
-            Đăng nhập để học
-          </Link>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap gap-1.5">
+              {deck.tags.slice(0, 2).map((t) => (
+                <span key={t} className="truncate rounded-md bg-subtle px-2 py-0.5 text-xs font-medium text-ink-2">
+                  {t}
+                </span>
+              ))}
+            </div>
+            {isLoggedIn && !isEnrolled && onEnroll && (
+              <button
+                type="button"
+                onClick={onEnroll}
+                className={buttonClass("soft", "sm", "relative z-10 shrink-0")}
+              >
+                <Plus className="h-4 w-4" />
+                Thêm vào bộ của tôi
+              </button>
+            )}
+          </div>
         )}
       </div>
-    </div>
+    </article>
   );
 }

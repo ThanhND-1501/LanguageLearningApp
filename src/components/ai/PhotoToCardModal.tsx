@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Camera, Upload, Loader2, Plus, Check } from "lucide-react";
+import { Sparkles, Camera, Upload, Loader2, Plus, Check, X } from "lucide-react";
 import { GeneratedCardItem, Card } from "@/types";
 
 interface PhotoToCardModalProps {
@@ -97,33 +97,33 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-2xl rounded-3xl bg-white p-6 sm:p-8 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800 my-8">
+      <div className="relative w-full max-w-2xl rounded-2xl bg-surface p-6 sm:p-8 shadow-lift border border-line my-8">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between pb-4 border-b border-line">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-300">
+            <div className="p-2 rounded-xl bg-primary-soft text-primary-ink">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+              <h3 className="text-xl font-bold text-ink">
                 Tạo Flashcard thông minh bằng AI
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-mute">
                 Google Gemini Multimodal Vision & Language Engine
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+          <button onClick={onClose} className="text-mute hover:text-ink-2" aria-label="Đóng"><X className="h-5 w-5" /></button>
         </div>
 
         {/* Tab selection */}
-        <div className="my-5 flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+        <div className="my-5 flex rounded-xl bg-subtle p-1">
           <button
             onClick={() => setActiveTab("topic")}
             className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
               activeTab === "topic"
-                ? "bg-white text-brand-600 shadow-sm dark:bg-slate-900 dark:text-white"
-                : "text-slate-600 dark:text-slate-400"
+                ? "bg-surface text-primary-ink shadow-sm"
+                : "text-ink-2"
             }`}
           >
             Nhập Chủ đề / Bài học
@@ -132,8 +132,8 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
             onClick={() => setActiveTab("photo")}
             className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
               activeTab === "photo"
-                ? "bg-white text-brand-600 shadow-sm dark:bg-slate-900 dark:text-white"
-                : "text-slate-600 dark:text-slate-400"
+                ? "bg-surface text-primary-ink shadow-sm"
+                : "text-ink-2"
             }`}
           >
             Chụp ảnh sách / Tài liệu (Photo-to-Card)
@@ -144,22 +144,22 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
         {activeTab === "topic" ? (
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-semibold uppercase text-slate-500">Chủ đề từ vựng:</label>
+              <label className="text-xs font-semibold text-mute">Chủ đề từ vựng:</label>
               <input
                 type="text"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="VD: Phỏng vấn xin việc ngành IT, Du lịch sân bay, IELTS Reading..."
-                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
+                className="mt-1 w-full rounded-xl border border-line px-4 py-2.5 text-sm font-medium focus:border-primary focus:outline-none"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold uppercase text-slate-500">Trình độ mục tiêu:</label>
+                <label className="text-xs font-semibold text-mute">Trình độ mục tiêu:</label>
                 <select
                   value={level}
                   onChange={(e) => setLevel(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
+                  className="mt-1 w-full rounded-xl border border-line px-3 py-2.5 text-sm font-medium focus:border-primary focus:outline-none"
                 >
                   <option value="A2-B1">A2 - B1 (Cơ bản đến Trung cấp)</option>
                   <option value="B2-C1">B2 - C1 (Nâng cao & IELTS)</option>
@@ -167,21 +167,21 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase text-slate-500">Số lượng từ:</label>
+                <label className="text-xs font-semibold text-mute">Số lượng từ:</label>
                 <input
                   type="number"
                   min={3}
                   max={15}
                   value={cardCount}
                   onChange={(e) => setCardCount(Number(e.target.value))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
+                  className="mt-1 w-full rounded-xl border border-line px-3 py-2.5 text-sm font-medium focus:border-primary focus:outline-none"
                 />
               </div>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-brand-400 transition-colors dark:border-slate-800">
+            <div className="border-2 border-dashed border-line rounded-2xl p-6 text-center hover:border-primary transition-colors">
               {imagePreview ? (
                 <div className="space-y-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -190,20 +190,20 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
                     alt="Preview"
                     className="max-h-48 mx-auto rounded-lg shadow-sm"
                   />
-                  <label className="inline-block px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium cursor-pointer hover:bg-slate-200">
+                  <label className="inline-block px-3 py-1.5 rounded-lg bg-subtle text-ink-2 text-xs font-medium cursor-pointer hover:bg-line">
                     Đổi ảnh khác
                     <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                   </label>
                 </div>
               ) : (
                 <label className="cursor-pointer flex flex-col items-center">
-                  <div className="h-12 w-12 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mb-2">
+                  <div className="h-12 w-12 rounded-full bg-primary-soft text-primary-ink flex items-center justify-center mb-2">
                     <Camera className="h-6 w-6" />
                   </div>
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  <span className="text-sm font-semibold text-ink-2">
                     Tải lên hoặc chụp ảnh tài liệu / trang sách
                   </span>
-                  <span className="text-xs text-slate-400 mt-1">Hỗ trợ PNG, JPG, WebP</span>
+                  <span className="text-xs text-mute mt-1">Hỗ trợ PNG, JPG, WebP</span>
                   <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                 </label>
               )}
@@ -216,7 +216,7 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
           <button
             onClick={handleGenerate}
             disabled={isLoading || (activeTab === "topic" && !topic.trim()) || (activeTab === "photo" && !imagePreview)}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 disabled:opacity-50 transition-colors shadow-sm"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm"
           >
             {isLoading ? (
               <>
@@ -234,9 +234,9 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
 
         {/* Generated Cards Preview */}
         {generatedCards.length > 0 && (
-          <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 space-y-3">
+          <div className="mt-6 pt-5 border-t border-line space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-xs font-bold text-mute">
                 Kết quả: ({selectedIndices.length}/{generatedCards.length} được chọn)
               </span>
               <button
@@ -247,7 +247,7 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
                       : generatedCards.map((_, i) => i)
                   )
                 }
-                className="text-xs font-semibold text-brand-600"
+                className="text-xs font-semibold text-primary-ink"
               >
                 {selectedIndices.length === generatedCards.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
               </button>
@@ -262,31 +262,31 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
                     onClick={() => toggleSelectCard(idx)}
                     className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       isSelected
-                        ? "bg-brand-50/60 border-brand-300 dark:bg-brand-950/40 dark:border-brand-800"
-                        : "bg-white border-slate-100 opacity-60 dark:bg-slate-800"
+                        ? "bg-primary-soft border-primary/25"
+                        : "bg-surface border-line opacity-60"
                     }`}
                   >
                     <div
                       className={`h-5 w-5 rounded-md flex items-center justify-center text-xs mt-0.5 ${
-                        isSelected ? "bg-brand-600 text-white" : "border border-slate-300"
+                        isSelected ? "bg-primary text-white" : "border border-line-strong"
                       }`}
                     >
                       {isSelected && <Check className="h-3.5 w-3.5" />}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <strong className="text-sm font-bold text-slate-900 dark:text-white">
+                        <strong className="text-sm font-bold text-ink">
                           {card.term}
                         </strong>
-                        <span className="text-xs font-mono text-brand-600 dark:text-brand-400">
+                        <span className="text-xs text-primary-ink">
                           {card.phonetic}
                         </span>
-                        <span className="text-xs text-slate-400">({card.partOfSpeech})</span>
+                        <span className="text-xs text-mute">({card.partOfSpeech})</span>
                       </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                      <p className="text-xs text-ink-2 mt-0.5">
                         {card.definition}
                       </p>
-                      <p className="text-[11px] text-slate-400 italic mt-0.5">
+                      <p className="text-[11px] text-mute italic mt-0.5">
                         &ldquo;{card.exampleSentence}&rdquo;
                       </p>
                     </div>
@@ -298,7 +298,7 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
             <button
               onClick={handleSaveSelectedCards}
               disabled={selectedIndices.length === 0}
-              className="w-full py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+              className="w-full py-3 rounded-xl bg-good text-white font-semibold hover:bg-good disabled:opacity-50 transition-colors shadow-sm"
             >
               Lưu {selectedIndices.length} thẻ vào bộ học
             </button>

@@ -5,7 +5,7 @@
 //         when Cambridge triggers Cloudflare 403 Bot Challenge or returns 404
 // ==============================================================================
 
-import * as cheerio from "cheerio";
+import * as cheerio from "cheerio/slim";
 
 export interface CambridgeDefinition {
   pos: string;

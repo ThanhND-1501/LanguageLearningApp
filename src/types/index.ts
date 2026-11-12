@@ -209,6 +209,7 @@ export interface StudyActivity {
     score?: number;
     cardsCount?: number;
     rating?: string;
+    mode?: "flashcard" | "write" | "dictation";
   };
   timestamp: string;
 }

@@ -36,7 +36,7 @@ function highlightTerm(sentence: string, term: string) {
     part.toLowerCase() === term.toLowerCase() ? (
       <span
         key={i}
-        className="text-brand-600 dark:text-brand-400 font-extrabold underline decoration-brand-400 underline-offset-4"
+        className="text-primary-ink font-bold underline decoration-primary-ink underline-offset-4"
       >
         {part}
       </span>
@@ -162,7 +162,7 @@ export default function SpeakingStudioPage() {
       // Kiểm tra sơ bộ kích thước tệp âm thanh
       if (!audioBlob || audioBlob.size < 1000) {
         setSilenceWarning(
-          "Không thu được âm thanh (bản ghi âm rỗng hoặc quá ngắn). Hãy bấm 'Kiểm tra Micro' để xem micro có hoạt động không."
+          "Không thu được âm thanh (bản ghi âm rỗng hoặc quá ngắn). Hãy bấm 'Kiểm tra micro' để xem micro có hoạt động không."
         );
       }
 
@@ -214,19 +214,13 @@ export default function SpeakingStudioPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+    <div className="mx-auto max-w-[1200px] px-5 py-8 sm:px-8 sm:py-10 space-y-8">
       {/* Header */}
-      <div className="pb-6 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="pb-6 border-b border-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-100 text-violet-800 text-xs font-bold uppercase tracking-wider mb-2 dark:bg-violet-950/60 dark:text-violet-300">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>PronScore™ Engine & Reflex Speaking</span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-            Studio Luyện Phản Xạ Nói & Chấm Phát Âm
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Luyện phát âm chuẩn xác từng câu ví dụ ngữ cảnh hoặc trả lời phản xạ với từ vựng mục tiêu.
+          <h1 className="text-[28px] font-bold tracking-tight text-ink">Luyện nói</h1>
+          <p className="mt-1 text-ink-2">
+            Đọc to câu ví dụ để chấm phát âm từng từ, hoặc tự trả lời câu hỏi bằng từ vừa học.
           </p>
         </div>
 
@@ -237,15 +231,15 @@ export default function SpeakingStudioPage() {
               className={cn(
                 "inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-semibold border transition-all",
                 engineStatus.online
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
-                  : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800"
+                  ? "bg-good-soft text-good border-good/25"
+                  : "bg-fair-soft text-fair border-fair/25"
               )}
               title={engineStatus.message}
             >
               <span
                 className={cn(
                   "h-2 w-2 rounded-full",
-                  engineStatus.online ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                  engineStatus.online ? "bg-good animate-pulse" : "bg-fair"
                 )}
               />
               <span>
@@ -259,84 +253,81 @@ export default function SpeakingStudioPage() {
           <button
             type="button"
             onClick={() => setIsMicTestOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold transition-all shadow-xs"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-subtle hover:bg-line text-ink text-xs font-bold transition-all shadow-sm"
           >
-            <Settings2 className="h-4 w-4 text-brand-600" />
-            <span>Kiểm tra Micro</span>
+            <Settings2 className="h-4 w-4 text-primary-ink" />
+            <span>Kiểm tra micro</span>
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Target Word Queue Selector */}
-        <div className="lg:col-span-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Chọn từ vựng mục tiêu:
+        <div className="lg:col-span-4 self-start overflow-hidden rounded-2xl border border-line bg-surface px-5 pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-mute">
+              Chọn từ để luyện
             </span>
-            <span className="text-xs text-brand-600 font-semibold">{cards.length} từ</span>
+            <span className="text-xs text-primary-ink font-semibold">{cards.length} từ</span>
           </div>
 
-          <div className="max-h-[500px] overflow-y-auto space-y-2 pr-1">
+          <ul className="-mx-5 max-h-[500px] divide-y divide-line overflow-y-auto border-t border-line">
             {cards.map((card) => {
               const isSelected = selectedCard?.id === card.id;
               return (
-                <div
-                  key={card.id}
-                  onClick={() => handleSelectCard(card)}
-                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                    isSelected
-                      ? "border-brand-500 bg-brand-50/70 shadow-sm dark:bg-brand-950/50 dark:border-brand-700"
-                      : "border-slate-100 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <strong className="text-sm font-bold text-slate-900 dark:text-white">
-                      {card.term}
-                    </strong>
-                    <span className="text-xs font-mono text-brand-600 dark:text-brand-400">
-                      {card.phonetic}
+                <li key={card.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCard(card)}
+                    aria-current={isSelected ? "true" : undefined}
+                    className={`block w-full px-5 py-3 text-left transition-colors ${
+                      isSelected ? "bg-primary-soft" : "hover:bg-subtle"
+                    }`}
+                  >
+                    <span className="flex items-baseline justify-between gap-3">
+                      <strong className={`text-sm font-semibold ${isSelected ? "text-primary-ink" : "text-ink"}`}>{card.term}</strong>
+                      <span className="text-xs text-mute">{card.phonetic}</span>
                     </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-1">{card.definition}</p>
-                </div>
+                    <span className="mt-0.5 block truncate text-xs text-mute">{card.definition}</span>
+                  </button>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
 
         {/* Right Column: Speaking Prompt & Recording Arena */}
         <div className="lg:col-span-8 space-y-6">
           {selectedCard ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">
+            <div className="space-y-6">
               {/* Word Header */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                  <h2 className="text-3xl font-bold text-ink flex items-center gap-3">
                     <span>{selectedCard.term}</span>
                     <button
                       onClick={() => playNativePronunciation(selectedCard.term)}
-                      className="p-1.5 rounded-xl bg-brand-50 text-brand-600 hover:bg-brand-100 dark:bg-brand-950 dark:text-brand-300 transition-colors"
+                      className="p-1.5 rounded-xl bg-primary-soft text-primary-ink hover:bg-primary-soft-hover transition-colors"
                       title="Nghe mẫu phát âm từ"
                     >
                       <Volume2 className="h-5 w-5" />
                     </button>
                   </h2>
-                  <p className="text-sm text-slate-500 font-mono mt-0.5">
+                  <p className="text-sm text-mute mt-0.5">
                     {selectedCard.phonetic} • ({selectedCard.partOfSpeech})
                   </p>
                 </div>
 
                 <div className="text-right">
-                  <span className="text-xs font-bold uppercase text-slate-400">Nghĩa tiếng Việt</span>
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  <span className="text-xs font-bold text-mute">Nghĩa tiếng Việt</span>
+                  <p className="text-sm font-bold text-ink">
                     {selectedCard.definition}
                   </p>
                 </div>
               </div>
 
               {/* Mode Selector Tabs */}
-              <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60">
+              <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-subtle border border-line">
                 <button
                   type="button"
                   onClick={() => {
@@ -346,12 +337,12 @@ export default function SpeakingStudioPage() {
                   className={cn(
                     "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2",
                     mode === "read_sentence"
-                      ? "bg-white text-brand-700 shadow-xs dark:bg-slate-900 dark:text-brand-300"
-                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                      ? "bg-surface text-primary-ink shadow-sm"
+                      : "text-ink-2 hover:text-ink"
                   )}
                 >
                   <BookOpen className="h-4 w-4" />
-                  <span>Chế độ 1: Đọc câu mẫu (Chuẩn phát âm)</span>
+                  <span>Đọc câu mẫu</span>
                 </button>
                 <button
                   type="button"
@@ -362,29 +353,29 @@ export default function SpeakingStudioPage() {
                   className={cn(
                     "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2",
                     mode === "free_speaking"
-                      ? "bg-white text-brand-700 shadow-xs dark:bg-slate-900 dark:text-brand-300"
-                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                      ? "bg-surface text-primary-ink shadow-sm"
+                      : "text-ink-2 hover:text-ink"
                   )}
                 >
                   <Sparkles className="h-4 w-4" />
-                  <span>Chế độ 2: Tự trả lời phản xạ</span>
+                  <span>Tự trả lời</span>
                 </button>
               </div>
 
               {/* MODE 1: READ EXAMPLE SENTENCE (Prominently displayed) */}
               {mode === "read_sentence" ? (
-                <div className="p-6 rounded-2xl bg-gradient-to-br from-brand-50/90 via-indigo-50/70 to-purple-50/50 border-2 border-brand-200/90 dark:from-slate-800/90 dark:via-brand-950/40 dark:to-indigo-950/40 dark:border-brand-800/80 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between pb-3 border-b border-brand-200/60 dark:border-brand-900/60">
-                    <div className="flex items-center gap-2 text-brand-700 dark:text-brand-300 text-xs font-bold uppercase tracking-wider">
-                      <Volume2 className="h-4 w-4 text-brand-600" />
-                      <span>Câu mẫu chuẩn — Hãy đọc to câu này để được chấm điểm:</span>
+                <div className="p-6 rounded-2xl bg-primary-soft border border-primary/25 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between pb-3 border-b border-primary/25">
+                    <div className="flex items-center gap-2 text-primary-ink text-xs font-bold">
+                      <Volume2 className="h-4 w-4 text-primary-ink" />
+                      <span>Đọc to câu này để được chấm điểm</span>
                     </div>
                     <button
                       type="button"
                       onClick={() =>
                         playNativePronunciation(selectedCard.exampleSentence || selectedCard.term)
                       }
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-brand-100 text-brand-700 dark:bg-slate-900 dark:hover:bg-brand-950 dark:text-brand-300 text-xs font-bold shadow-xs transition-colors border border-brand-200 dark:border-brand-800"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface hover:bg-primary-soft text-primary-ink text-xs font-bold shadow-sm transition-colors border border-primary/25"
                       title="Nghe giọng đọc bản xứ của toàn bộ câu"
                     >
                       <Volume2 className="h-3.5 w-3.5" />
@@ -392,7 +383,7 @@ export default function SpeakingStudioPage() {
                     </button>
                   </div>
 
-                  <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white leading-relaxed tracking-tight">
+                  <p className="text-xl sm:text-2xl font-bold text-ink leading-relaxed tracking-tight">
                     &ldquo;
                     {highlightTerm(
                       selectedCard.exampleSentence ||
@@ -403,9 +394,9 @@ export default function SpeakingStudioPage() {
                   </p>
 
                   {selectedCard.exampleTranslation && (
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300 italic pt-1">
-                      <span className="not-italic text-xs font-bold uppercase text-slate-400 mr-2">
-                        Dịch nghĩa:
+                    <p className="text-sm font-medium text-ink-2 italic pt-1">
+                      <span className="not-italic text-xs font-bold text-mute mr-2">
+                        Nghĩa:
                       </span>
                       {selectedCard.exampleTranslation}
                     </p>
@@ -413,21 +404,21 @@ export default function SpeakingStudioPage() {
                 </div>
               ) : (
                 /* MODE 2: FREE SPEAKING CHALLENGE */
-                <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-50 to-brand-50 border border-indigo-100 dark:from-slate-800 dark:to-indigo-950/40 dark:border-indigo-900 space-y-4">
+                <div className="p-6 rounded-2xl bg-primary-soft border border-primary/25 space-y-4">
                   <div>
-                    <div className="flex items-center gap-2 text-brand-700 dark:text-brand-300 text-xs font-bold uppercase tracking-wider mb-1.5">
+                    <div className="flex items-center gap-2 text-primary-ink text-xs font-bold mb-1.5">
                       <Sparkles className="h-4 w-4" />
                       <span>Câu hỏi gợi ý phản xạ:</span>
                     </div>
-                    <p className="text-base font-bold text-slate-900 dark:text-white">
+                    <p className="text-base font-bold text-ink">
                       &ldquo;
                       {selectedCard.speakingPrompt ||
                         `Tell a short story where you had to be ${selectedCard.term}.`}
                       &rdquo;
                     </p>
-                    <p className="text-xs text-slate-500 mt-1.5">
+                    <p className="text-xs text-mute mt-1.5">
                       Quy tắc: Hãy nói to một câu trả lời hoàn chỉnh có chứa từ{" "}
-                      <strong className="underline text-brand-700 dark:text-brand-400">
+                      <strong className="underline text-primary-ink">
                         {selectedCard.term}
                       </strong>
                       .
@@ -435,7 +426,7 @@ export default function SpeakingStudioPage() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    <label className="text-xs font-semibold text-ink-2">
                       Câu bạn dự định nói (nhập trước để AI đối sánh chính xác hơn):
                     </label>
                     <input
@@ -443,7 +434,7 @@ export default function SpeakingStudioPage() {
                       value={userSentence}
                       onChange={(e) => setUserSentence(e.target.value)}
                       placeholder={`VD: In tough situations, I always stay ${selectedCard.term} to achieve my dreams.`}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
+                      className="mt-1.5 w-full rounded-xl border border-line px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
                     />
                   </div>
                 </div>
@@ -451,12 +442,12 @@ export default function SpeakingStudioPage() {
 
               {/* Silence Warning Alert */}
               {silenceWarning && (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs animate-in fade-in">
+                <div className="p-4 rounded-2xl bg-fair-soft border border-fair/25 text-fair flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs animate-in fade-in">
                   <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <AlertTriangle className="h-4 w-4 text-fair shrink-0 mt-0.5" />
                     <div>
                       <p className="font-bold">{silenceWarning}</p>
-                      <p className="mt-0.5 text-amber-700 dark:text-amber-300">
+                      <p className="mt-0.5 text-fair">
                         Hãy đảm bảo micro của bạn đang bật và nói to, rõ ràng hơn.
                       </p>
                     </div>
@@ -464,38 +455,38 @@ export default function SpeakingStudioPage() {
                   <button
                     type="button"
                     onClick={() => setIsMicTestOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0 transition-colors shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-fair hover:bg-fair text-white font-bold shrink-0 transition-colors shadow-sm"
                   >
                     <Settings2 className="h-3.5 w-3.5" />
-                    <span>Test Micro</span>
+                    <span>Kiểm tra micro</span>
                   </button>
                 </div>
               )}
 
               {/* Big Record Button & Live Visualizer */}
-              <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-slate-50 border border-slate-100 dark:bg-slate-800/40 dark:border-slate-800">
+              <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-subtle border border-line">
                 {/* Live Volume Bar when recording */}
                 {isRecording && (
-                  <div className="w-full max-w-sm mb-6 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm space-y-2">
+                  <div className="w-full max-w-sm mb-6 p-4 rounded-2xl bg-surface border border-line shadow-sm space-y-2">
                     <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="flex items-center gap-1.5 text-rose-600 animate-pulse">
-                        <span className="h-2 w-2 rounded-full bg-rose-600" />
+                      <span className="flex items-center gap-1.5 text-poor animate-pulse">
+                        <span className="h-2 w-2 rounded-full bg-poor" />
                         Đang thu âm giọng bạn:
                       </span>
-                      <span className="font-mono text-brand-600 dark:text-brand-400">
+                      <span className="text-primary-ink">
                         {liveVolume}%
                       </span>
                     </div>
 
-                    <div className="h-3 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden p-0.5 flex items-center">
+                    <div className="h-3 w-full rounded-full bg-subtle overflow-hidden p-0.5 flex items-center">
                       <div
                         className={cn(
                           "h-full rounded-full transition-all duration-75",
                           liveVolume < 5
-                            ? "bg-slate-300 w-1"
+                            ? "bg-line w-1"
                             : liveVolume < 75
-                            ? "bg-emerald-500"
-                            : "bg-rose-500"
+                            ? "bg-good"
+                            : "bg-poor"
                         )}
                         style={{ width: `${Math.max(3, liveVolume)}%` }}
                       />
@@ -503,12 +494,12 @@ export default function SpeakingStudioPage() {
 
                     <div className="text-[11px] text-center font-medium">
                       {liveVolume < 5 ? (
-                        <span className="text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
+                        <span className="text-fair flex items-center justify-center gap-1">
                           <VolumeX className="h-3.5 w-3.5" />
                           Chưa nhận thấy tiếng! Hãy nói to vào micro.
                         </span>
                       ) : (
-                        <span className="text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1">
+                        <span className="text-good flex items-center justify-center gap-1">
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           Tín hiệu micro tốt!
                         </span>
@@ -521,19 +512,19 @@ export default function SpeakingStudioPage() {
                   <button
                     onClick={startRecording}
                     disabled={isEvaluating}
-                    className="flex items-center gap-3 px-8 py-4 rounded-full bg-brand-600 text-white font-bold text-base hover:bg-brand-700 shadow-xl shadow-brand-500/25 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                    className="flex items-center gap-3 px-8 py-4 rounded-full bg-primary text-white font-bold text-base hover:bg-primary-hover shadow-lift transition-all disabled:opacity-50"
                   >
                     <Mic className="h-6 w-6" />
                     <span>
                       {mode === "read_sentence"
-                        ? "Bấm vào đây & Đọc to câu mẫu"
-                        : "Bấm vào đây để thu âm câu nói"}
+                        ? "Bắt đầu ghi âm"
+                        : "Ghi âm câu trả lời"}
                     </span>
                   </button>
                 ) : (
                   <button
                     onClick={stopRecording}
-                    className="flex items-center gap-3 px-8 py-4 rounded-full bg-rose-600 text-white font-bold text-base hover:bg-rose-700 shadow-xl shadow-rose-500/25 animate-pulse transition-all"
+                    className="flex items-center gap-3 px-8 py-4 rounded-full bg-poor text-white font-bold text-base hover:bg-poor shadow-lift animate-pulse transition-all"
                   >
                     <Square className="h-5 w-5 fill-white" />
                     <span>Dừng ghi âm & Chấm PronScore</span>
@@ -541,26 +532,16 @@ export default function SpeakingStudioPage() {
                 )}
 
                 <div className="flex items-center gap-4 mt-3">
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-mute">
                     {isRecording
                       ? "Đang thu âm... Hãy nói to, rõ ràng từng âm tiết."
-                      : "Hệ thống AI sẽ bóc tách âm vị, tính điểm trôi chảy, ngữ điệu và sửa lỗi phát âm."}
+                      : "Bạn sẽ thấy điểm từng từ, độ trôi chảy và ngữ điệu ngay sau khi nói."}
                   </p>
-                  {!isRecording && (
-                    <button
-                      type="button"
-                      onClick={() => setIsMicTestOpen(true)}
-                      className="text-xs text-brand-600 dark:text-brand-400 font-semibold hover:underline flex items-center gap-1"
-                    >
-                      <Settings2 className="h-3.5 w-3.5" />
-                      <span>Test Mic</span>
-                    </button>
-                  )}
                 </div>
               </div>
 
               {isEvaluating && (
-                <div className="flex items-center justify-center gap-3 p-6 text-brand-600">
+                <div className="flex items-center justify-center gap-3 p-6 text-primary-ink">
                   <Loader2 className="h-6 w-6 animate-spin" />
                   <span className="font-semibold text-sm">
                     Đang gửi âm thanh tới AI để phân tích âm vị & ngữ điệu...
@@ -576,8 +557,8 @@ export default function SpeakingStudioPage() {
               )}
             </div>
           ) : (
-            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 dark:bg-slate-900">
-              <p className="text-slate-500">Hãy chọn một từ vựng bên trái để bắt đầu luyện nói.</p>
+            <div className="p-12 text-center bg-surface rounded-2xl border border-line">
+              <p className="text-mute">Hãy chọn một từ vựng bên trái để bắt đầu luyện nói.</p>
             </div>
           )}
         </div>
