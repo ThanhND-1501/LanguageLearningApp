@@ -1,6 +1,7 @@
 -- ==============================================================================
 -- LingoPulse AI - Database Schema
 -- Compatible with PostgreSQL 15+ and Supabase
+-- Supports Many-to-Many Decks & Deduplicated Vocabulary Cards
 -- ==============================================================================
 
 -- Enable UUID extension
@@ -31,7 +32,8 @@ CREATE INDEX IF NOT EXISTS idx_decks_created_at ON decks (created_at DESC);
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cards (
     id TEXT PRIMARY KEY,
-    deck_id TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+    deck_id TEXT REFERENCES decks(id) ON DELETE SET NULL, -- Primary/Original deck (backward compatibility)
+    deck_ids TEXT[] DEFAULT ARRAY[]::TEXT[],              -- Array of all linked decks for ultra-fast queries
     term VARCHAR(255) NOT NULL,                           -- Từ vựng (VD: "resilient")
     phonetic VARCHAR(100),                                -- Phiên âm IPA (VD: "/rɪˈzɪliənt/")
     part_of_speech VARCHAR(50),                           -- Từ loại (noun, verb, adjective...)
@@ -57,11 +59,27 @@ CREATE TABLE IF NOT EXISTS cards (
 
 -- Indexes for card lookup & SRS queue querying
 CREATE INDEX IF NOT EXISTS idx_cards_deck_id ON cards (deck_id);
+CREATE INDEX IF NOT EXISTS idx_cards_deck_ids ON cards USING GIN (deck_ids);
 CREATE INDEX IF NOT EXISTS idx_cards_srs_queue ON cards (next_review_at ASC, status);
 CREATE INDEX IF NOT EXISTS idx_cards_term ON cards (term);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cards_unique_lower_term ON cards (LOWER(TRIM(term)));
 
 -- ------------------------------------------------------------------------------
--- 3. BẢNG LỊCH SỬ LUYỆN NÓI & CHẤM ĐIỂM PHÁT ÂM (Speaking Attempts & PronScore)
+-- 3. BẢNG QUAN HỆ NHIỀU - NHIỀU: BỘ TỪ & TỪ VỰNG (Junction Table: deck_cards)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS deck_cards (
+    deck_id TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+    card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    order_index INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (deck_id, card_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_deck_cards_deck_id ON deck_cards (deck_id);
+CREATE INDEX IF NOT EXISTS idx_deck_cards_card_id ON deck_cards (card_id);
+
+-- ------------------------------------------------------------------------------
+-- 4. BẢNG LỊCH SỬ LUYỆN NÓI & CHẤM ĐIỂM PHÁT ÂM (Speaking Attempts & PronScore)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS speaking_attempts (
     id TEXT PRIMARY KEY,
@@ -88,7 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_speaking_attempts_card_id ON speaking_attempts (c
 CREATE INDEX IF NOT EXISTS idx_speaking_attempts_created_at ON speaking_attempts (created_at DESC);
 
 -- ------------------------------------------------------------------------------
--- 4. BẢNG PHIÊN HỘI THOẠI TÌNH HUỐNG AI (Roleplay Conversation Sessions)
+-- 5. BẢNG PHIÊN HỘI THOẠI TÌNH HUỐNG AI (Roleplay Conversation Sessions)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS conversation_sessions (
     id TEXT PRIMARY KEY,
@@ -106,24 +124,24 @@ CREATE TABLE IF NOT EXISTS conversation_sessions (
 CREATE INDEX IF NOT EXISTS idx_conversation_sessions_status ON conversation_sessions (status);
 
 -- ------------------------------------------------------------------------------
--- TRIGGER TỰ ĐỘNG CẬP NHẬT TỔNG SỐ THẺ TRONG DECK
+-- TRIGGER TỰ ĐỘNG CẬP NHẬT TỔNG SỐ THẺ TRONG DECK (Từ junction table deck_cards)
 -- ------------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION update_deck_total_cards()
+CREATE OR REPLACE FUNCTION update_deck_total_cards_from_deck_cards()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (TG_OP = 'INSERT') THEN
         UPDATE decks SET total_cards = total_cards + 1, updated_at = now() WHERE id = NEW.deck_id;
     ELSIF (TG_OP = 'DELETE') THEN
-        UPDATE decks SET total_cards = total_cards - 1, updated_at = now() WHERE id = OLD.deck_id;
+        UPDATE decks SET total_cards = GREATEST(0, total_cards - 1), updated_at = now() WHERE id = OLD.deck_id;
     END IF;
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trigger_update_deck_total_cards ON cards;
-CREATE TRIGGER trigger_update_deck_total_cards
-AFTER INSERT OR DELETE ON cards
-FOR EACH ROW EXECUTE FUNCTION update_deck_total_cards();
+DROP TRIGGER IF EXISTS trigger_update_deck_cards_total ON deck_cards;
+CREATE TRIGGER trigger_update_deck_cards_total
+AFTER INSERT OR DELETE ON deck_cards
+FOR EACH ROW EXECUTE FUNCTION update_deck_total_cards_from_deck_cards();
 
 -- ------------------------------------------------------------------------------
 -- VIEW THỐNG KÊ TIẾN ĐỘ HỌC TẬP (Study Progress View)
@@ -133,13 +151,14 @@ SELECT
     d.id AS deck_id,
     d.title,
     d.target_lang,
-    COUNT(c.id) AS total_cards,
+    COUNT(dc.card_id) AS total_cards,
     COUNT(CASE WHEN c.status = 'new' THEN 1 END) AS new_cards,
     COUNT(CASE WHEN c.status = 'learning' THEN 1 END) AS learning_cards,
     COUNT(CASE WHEN c.status = 'mastered' THEN 1 END) AS mastered_cards,
     COUNT(CASE WHEN c.next_review_at <= now() THEN 1 END) AS due_cards
 FROM decks d
-LEFT JOIN cards c ON d.id = c.deck_id
+LEFT JOIN deck_cards dc ON d.id = dc.deck_id
+LEFT JOIN cards c ON dc.card_id = c.id
 GROUP BY d.id, d.title, d.target_lang;
 
 -- ------------------------------------------------------------------------------
@@ -147,6 +166,7 @@ GROUP BY d.id, d.title, d.target_lang;
 -- ------------------------------------------------------------------------------
 ALTER TABLE decks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE deck_cards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE speaking_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversation_sessions ENABLE ROW LEVEL SECURITY;
 
@@ -156,6 +176,9 @@ CREATE POLICY "Allow read decks" ON decks FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Allow read cards" ON cards;
 CREATE POLICY "Allow read cards" ON cards FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow read deck_cards" ON deck_cards;
+CREATE POLICY "Allow read deck_cards" ON deck_cards FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Allow read speaking_attempts" ON speaking_attempts;
 CREATE POLICY "Allow read speaking_attempts" ON speaking_attempts FOR SELECT USING (true);
@@ -170,6 +193,9 @@ CREATE POLICY "Allow authenticated write decks" ON decks FOR ALL TO authenticate
 DROP POLICY IF EXISTS "Allow authenticated write cards" ON cards;
 CREATE POLICY "Allow authenticated write cards" ON cards FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow authenticated write deck_cards" ON deck_cards;
+CREATE POLICY "Allow authenticated write deck_cards" ON deck_cards FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
 DROP POLICY IF EXISTS "Allow authenticated write speaking_attempts" ON speaking_attempts;
 CREATE POLICY "Allow authenticated write speaking_attempts" ON speaking_attempts FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
@@ -182,3 +208,6 @@ CREATE POLICY "Allow anon write decks" ON decks FOR ALL TO anon USING (true) WIT
 
 DROP POLICY IF EXISTS "Allow anon write cards" ON cards;
 CREATE POLICY "Allow anon write cards" ON cards FOR ALL TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon write deck_cards" ON deck_cards;
+CREATE POLICY "Allow anon write deck_cards" ON deck_cards FOR ALL TO anon USING (true) WITH CHECK (true);

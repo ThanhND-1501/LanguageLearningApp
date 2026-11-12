@@ -23,6 +23,7 @@ export interface Deck {
 export interface Card {
   id: string;
   deckId: string;
+  deckIds?: string[];         // Danh sách các bộ từ chứa thẻ này (quan hệ nhiều - nhiều)
   term: string;
   phonetic?: string;
   partOfSpeech?: string;
@@ -49,6 +50,13 @@ export interface DeckStats {
   learningCount: number;
   masteredCount: number;
   dueCount: number;
+}
+
+export interface DeckCardRelation {
+  deckId: string;
+  cardId: string;
+  orderIndex?: number;
+  createdAt?: string;
 }
 
 // ------------------------------------------------------------------------------

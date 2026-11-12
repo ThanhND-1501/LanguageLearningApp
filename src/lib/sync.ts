@@ -45,6 +45,7 @@ export function mapCardToDb(card: Card) {
   return {
     id: card.id,
     deck_id: card.deckId,
+    deck_ids: Array.isArray(card.deckIds) && card.deckIds.length > 0 ? card.deckIds : (card.deckId ? [card.deckId] : []),
     term: card.term,
     phonetic: card.phonetic || null,
     part_of_speech: card.partOfSpeech || null,
@@ -67,7 +68,8 @@ export function mapCardToDb(card: Card) {
 export function mapDbToCard(row: any): Card {
   return {
     id: row.id,
-    deckId: row.deck_id,
+    deckId: row.deck_id || (Array.isArray(row.deck_ids) && row.deck_ids.length > 0 ? row.deck_ids[0] : ""),
+    deckIds: Array.isArray(row.deck_ids) ? row.deck_ids : (row.deck_id ? [row.deck_id] : []),
     term: row.term,
     phonetic: row.phonetic || undefined,
     partOfSpeech: row.part_of_speech || undefined,
