@@ -12,21 +12,13 @@ import { playNativePronunciation } from "@/lib/audio";
 import { SpeechPracticeModal } from "@/components/speaking/SpeechPracticeModal";
 import { PhotoToCardModal } from "@/components/ai/PhotoToCardModal";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import {
-  Volume2,
-  Play,
-  Plus,
-  Sparkles,
-  ArrowLeft,
-  Clock,
-  Mic,
-  BookOpen,
-  Edit3,
-  CheckCircle2,
-  Loader2,
-  AlertCircle,
-  Search,
-} from "lucide-react";
+import { ArrowLeft, CheckCircle2, ImagePlus, Loader2, Mic, PenLine, Plus, Search, Headphones, Volume2, AlertCircle } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
+import { buttonClass } from "@/components/ui/button";
+import { DeckSpine, MemoryRamp } from "@/components/deck/DeckCard";
+import { EmptyCards } from "@/components/illustrations";
+import { deckProgress, isDue, langPair, reviewMinutes } from "@/lib/deck-style";
+import { cn } from "@/lib/utils";
 import { formatRelativeDate } from "@/lib/utils";
 
 export default function DeckDetailPage() {
@@ -41,6 +33,8 @@ export default function DeckDetailPage() {
   const [activeSpeechCard, setActiveSpeechCard] = useState<Card | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "due" | "new" | "learning" | "mastered">("all");
 
   useEffect(() => {
     setCurrentUser(getActiveUser());
@@ -149,7 +143,9 @@ export default function DeckDetailPage() {
     }
 
     const allCards = getLocalCards();
-    const localDeckCards = allCards.filter((c) => c.deckId === deckId);
+    const localDeckCards = allCards.filter(
+      (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+    );
     setCards(localDeckCards);
 
     if (isSupabaseConfigured()) {
@@ -169,7 +165,7 @@ export default function DeckDetailPage() {
 
         sb.from("cards")
           .select("*")
-          .eq("deck_id", deckId)
+          .or(`deck_id.eq.${deckId},deck_ids.cs.{${deckId}}`)
           .then(({ data, error }) => {
             if (!error && data && data.length > 0) {
               const cloudDeckCards = data.map(mapDbToCard);
@@ -197,7 +193,9 @@ export default function DeckDetailPage() {
 
               setCards(merged);
               // Cache in localStorage alongside other cards
-              const remaining = allStoredCards.filter((c) => c.deckId !== deckId);
+              const remaining = allStoredCards.filter(
+                (c) => c.deckId !== deckId && !(Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+              );
               saveLocalCards([...remaining, ...merged]);
             }
           });
@@ -228,7 +226,11 @@ export default function DeckDetailPage() {
     const allCards = getLocalCards();
     const updated = [newCard, ...allCards];
     saveLocalCards(updated);
-    setCards(updated.filter((c) => c.deckId === deckId));
+    setCards(
+      updated.filter(
+        (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+      )
+    );
 
     recordStudyActivity({
       type: "card_created",
@@ -251,13 +253,18 @@ export default function DeckDetailPage() {
     const allCards = getLocalCards();
     const updated = [...newAiCards, ...allCards];
     saveLocalCards(updated);
-    setCards(updated.filter((c) => c.deckId === deckId));
+    setCards(
+      updated.filter(
+        (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+      )
+    );
   };
+
 
   if (isAuthChecking) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+      <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-label="Đang tải">
+        <Loader2 className="h-6 w-6 animate-spin text-mute" />
       </div>
     );
   }
@@ -265,399 +272,289 @@ export default function DeckDetailPage() {
   if (!currentUser) {
     return (
       <AuthGuard
-        featureName="Chi tiết bộ từ vựng"
-        title="Đăng nhập để xem chi tiết bộ từ vựng"
-        description="Vui lòng đăng nhập để xem danh sách toàn bộ từ vựng, câu ví dụ ngữ cảnh, phát âm bản xứ và bắt đầu ôn tập."
+        title="Đăng nhập để xem bộ từ này"
+        description="Đăng nhập để xem toàn bộ thẻ, nghe phát âm và bắt đầu ôn tập."
         backHref="/decks"
-        backLabel="Xem danh mục bộ từ"
+        backLabel="Về thư viện"
       />
     );
   }
 
   if (!deck) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-12 text-center">
-        <p className="text-slate-500">Đang tải dữ liệu bộ từ...</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-5 text-center" role="status">
+        <Loader2 className="h-6 w-6 animate-spin text-mute" />
+        <p className="text-ink-2">Đang tải bộ từ…</p>
+        <Link href="/decks" className="text-sm font-semibold text-primary-ink hover:underline">Về thư viện</Link>
       </div>
     );
   }
 
   const now = Date.now();
-  const dueCards = cards.filter((c) => {
-    if (c.status === "new") return true;
-    return new Date(c.nextReviewAt).getTime() <= now;
+  const p = deckProgress(cards, now);
+  const q = query.toLowerCase().trim();
+  const visible = cards.filter((c) => {
+    if (statusFilter === "due" && !isDue(c, now)) return false;
+    if (statusFilter !== "all" && statusFilter !== "due" && c.status !== statusFilter) return false;
+    if (q && !c.term.toLowerCase().includes(q) && !c.definition.toLowerCase().includes(q)) return false;
+    return true;
   });
 
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
-      {/* Back button */}
-      <div>
-        <Link
-          href="/decks"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Quay lại danh sách bộ từ</span>
-        </Link>
-      </div>
+  const STATUS_LABEL: Record<Card["status"], string> = { new: "Mới", learning: "Đang học", mastered: "Đã thuộc" };
+  const FILTERS: [typeof statusFilter, string, number][] = [
+    ["all", "Tất cả", p.total],
+    ["due", "Cần ôn", p.due],
+    ["new", "Mới", p.newCount],
+    ["learning", "Đang học", p.learning],
+    ["mastered", "Đã thuộc", p.mastered],
+  ];
 
-      {/* Deck Header & Study Launcher */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              {deck.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300"
-                >
-                  {tag}
+  return (
+    <div className="mx-auto max-w-[1200px] px-5 py-8 sm:px-8 sm:py-10">
+      <Link href="/decks" className="inline-flex items-center gap-1.5 text-sm font-medium text-mute hover:text-ink">
+        <ArrowLeft className="h-4 w-4" />
+        Thư viện
+      </Link>
+
+      {/* Header */}
+      <header className="mt-4 grid gap-6 lg:grid-cols-[1fr_380px] lg:items-start">
+        <div className="flex items-start gap-4">
+          <DeckSpine deck={deck} className="h-14 w-11 text-sm" />
+          <div className="min-w-0">
+            <h1 className="text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]">{deck.title}</h1>
+            <p className="mt-1 text-[15px] text-mute">
+              {langPair(deck)} · {p.total} thẻ
+            </p>
+            {deck.description && <p className="mt-3 max-w-[60ch] text-ink-2">{deck.description}</p>}
+            {deck.tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {deck.tags.map((t) => (
+                  <span key={t} className="rounded-md bg-subtle px-2 py-0.5 text-xs font-medium text-ink-2">{t}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Study panel */}
+        <section aria-label="Ôn tập" className="rounded-2xl border border-line bg-surface p-5 shadow-raised">
+          {p.total === 0 ? (
+            <>
+              <p className="font-semibold">Bộ từ chưa có thẻ nào</p>
+              <p className="mt-1 text-sm text-ink-2">Thêm thẻ để bắt đầu ôn tập.</p>
+              <button type="button" onClick={handleOpenAddModal} className={buttonClass("primary", "md", "mt-4 w-full")}>
+                <Plus className="h-4 w-4" /> Thêm thẻ đầu tiên
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-baseline justify-between">
+                <span>
+                  <span className="text-3xl font-bold tracking-tight">{p.due}</span>
+                  <span className="ml-2 font-semibold">thẻ cần ôn</span>
                 </span>
+                <span className="text-sm text-mute">{p.masteredPct}% đã thuộc</span>
+              </div>
+              <MemoryRamp className="mt-3" newCount={p.newCount} learning={p.learning} mastered={p.mastered} />
+              <div className="mt-2 flex gap-4 text-xs text-mute">
+                <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-primary" />{p.mastered} đã thuộc</span>
+                <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-primary/45" />{p.learning} đang học</span>
+                <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-line-strong" />{p.newCount} mới</span>
+              </div>
+              <Link href={`/study/${deck.id}?mode=flashcard`} className={buttonClass("primary", "md", "mt-5 w-full")}>
+                {p.due > 0 ? `Ôn ${p.due} thẻ · khoảng ${reviewMinutes(p.due)} phút` : "Ôn lại bằng thẻ lật"}
+              </Link>
+              <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+                <Link href={`/study/${deck.id}?mode=write`} className={buttonClass("secondary", "sm")}>
+                  <PenLine className="h-4 w-4" /> Gõ lại từ
+                </Link>
+                <Link href={`/study/${deck.id}?mode=dictation`} className={buttonClass("secondary", "sm")}>
+                  <Headphones className="h-4 w-4" /> Nghe chép
+                </Link>
+              </div>
+            </>
+          )}
+        </section>
+      </header>
+
+      {/* Cards */}
+      <section aria-labelledby="cards-title" className="mt-10">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="cards-title" className="text-lg font-bold tracking-tight">Thẻ trong bộ</h2>
+          <div className="flex gap-2.5">
+            <button type="button" onClick={handleOpenAiModal} className={buttonClass("secondary", "sm")}>
+              <ImagePlus className="h-4 w-4" /> Tạo bằng AI
+            </button>
+            <button type="button" onClick={handleOpenAddModal} className={buttonClass("primary", "sm")}>
+              <Plus className="h-4 w-4" /> Thêm thẻ
+            </button>
+          </div>
+        </div>
+
+        {p.total > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 sm:mx-0 sm:px-0" role="group" aria-label="Lọc theo trạng thái">
+              {FILTERS.map(([id, label, n]) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={statusFilter === id}
+                  onClick={() => setStatusFilter(id)}
+                  className={cn(
+                    "h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium transition-colors",
+                    statusFilter === id ? "border-primary bg-primary-soft text-primary-ink" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
+                  )}
+                >
+                  {label} <span className="opacity-70">{n}</span>
+                </button>
               ))}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-              {deck.title}
-            </h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              {deck.description}
-            </p>
+            <label className="relative ml-auto w-full sm:w-64">
+              <span className="sr-only">Tìm thẻ</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm từ hoặc nghĩa…" className="field h-9 pl-9 text-sm" />
+            </label>
           </div>
+        )}
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              onClick={handleOpenAiModal}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-brand-200 bg-brand-50 text-brand-700 text-xs font-bold hover:bg-brand-100 dark:border-brand-900 dark:bg-brand-950/60 dark:text-brand-300 transition-colors shadow-xs"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span>Tạo thêm thẻ bằng AI</span>
-            </button>
-
-            <button
-              onClick={handleOpenAddModal}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 transition-colors shadow-xs"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Thêm thẻ thủ công</span>
-            </button>
+        {p.total === 0 ? (
+          <div className="mt-4 flex flex-col items-center rounded-card border border-dashed border-line-strong px-6 py-14 text-center">
+            <EmptyCards className="h-auto w-44" />
+            <p className="mt-4 font-semibold">Chưa có thẻ nào</p>
+            <p className="mt-1 max-w-sm text-sm text-ink-2">Gõ một từ và tra từ điển Cambridge để điền sẵn phiên âm, nghĩa và câu ví dụ, hoặc tạo hàng loạt bằng AI từ ảnh chụp.</p>
           </div>
-        </div>
-
-        {/* Study Mode Selector tabs */}
-        <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
-            <span>Chọn chế độ học & ôn tập</span>
-            <span>3 chế độ luyện tập phản xạ</span>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-            {/* Mode 1: Flashcard (Primary / Default) */}
-            <Link
-              href={currentUser ? `/study/${deck.id}?mode=flashcard` : "/login"}
-              className="flex items-center justify-between p-4 rounded-2xl border-2 border-brand-500 bg-gradient-to-r from-brand-50/80 to-indigo-50/60 hover:from-brand-100 hover:to-indigo-100 dark:from-brand-950/40 dark:to-indigo-950/40 dark:border-brand-500 transition-all shadow-xs group"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="p-2.5 rounded-xl bg-brand-600 text-white shadow-sm group-hover:scale-105 transition-transform">
-                  <Play className="h-4 w-4 fill-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-extrabold text-slate-900 dark:text-white">Flashcard</p>
-                    <span className="px-1.5 py-0.2 rounded-md text-[10px] font-black uppercase bg-brand-600 text-white">
-                      Ôn tập chính
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Lật thẻ phản xạ Spaced Repetition (SRS)</p>
-                </div>
-              </div>
-
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-xl shrink-0 ${
-                dueCards.length > 0
-                  ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-              }`}>
-                {dueCards.length > 0 ? `${dueCards.length} cần ôn` : "0 cần ôn"}
-              </span>
-            </Link>
-
-            {/* Mode 2: Write */}
-            <Link
-              href={currentUser ? `/study/${deck.id}?mode=write` : "/login"}
-              className="flex items-center gap-3.5 p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-amber-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-700 transition-all shadow-xs group"
-            >
-              <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 group-hover:scale-105 transition-transform">
-                <Edit3 className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">Write (Chính tả)</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Gõ từ chủ động theo định nghĩa</p>
-              </div>
-            </Link>
-
-            {/* Mode 3: Dictation */}
-            <Link
-              href={currentUser ? `/study/${deck.id}?mode=dictation` : "/login"}
-              className="flex items-center gap-3.5 p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-emerald-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-emerald-700 transition-all shadow-xs group"
-            >
-              <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 group-hover:scale-105 transition-transform">
-                <Volume2 className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">Dictation (Nghe chép)</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Nghe audio và chép lại từ vựng</p>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Cards Table */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            Danh sách từ vựng ({cards.length} thẻ)
-          </h2>
-        </div>
-
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {cards.map((card) => (
-              <div
-                key={card.id}
-                className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
+        ) : visible.length === 0 ? (
+          <p className="mt-4 rounded-card border border-line bg-surface px-5 py-10 text-center text-ink-2">Không có thẻ nào khớp bộ lọc.</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-line rounded-card border border-line bg-surface">
+            {visible.map((card) => (
+              <li key={card.id} className="grid gap-x-6 gap-y-2 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                     <button
+                      type="button"
                       onClick={() => playNativePronunciation(card.term)}
-                      className="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-950 transition-colors"
-                      title="Nghe phát âm"
+                      aria-label={`Nghe phát âm “${card.term}”`}
+                      className="-ml-1.5 grid h-8 w-8 place-items-center rounded-lg text-mute hover:bg-primary-soft hover:text-primary-ink"
                     >
                       <Volume2 className="h-4 w-4" />
                     </button>
-                    <span className="text-lg font-bold text-slate-900 dark:text-white">
-                      {card.term}
-                    </span>
-                    {card.phonetic && (
-                      <span className="text-xs font-mono text-brand-600 dark:text-brand-400">
-                        {card.phonetic}
-                      </span>
-                    )}
-                    {card.partOfSpeech && (
-                      <span className="text-xs text-slate-400 italic">
-                        ({card.partOfSpeech})
-                      </span>
-                    )}
-                    <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        card.status === "mastered"
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                          : card.status === "learning"
-                          ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                          : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                      }`}
-                    >
-                      {card.status}
-                    </span>
+                    <span className="text-[17px] font-semibold">{card.term}</span>
+                    {card.phonetic && <span className="text-sm text-mute">{card.phonetic}</span>}
+                    {card.partOfSpeech && <span className="text-sm italic text-mute">{card.partOfSpeech}</span>}
                   </div>
-
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300 pl-8">
-                    {card.definition}
-                  </p>
-
-                  {card.exampleSentence && (
-                    <p className="text-xs text-slate-500 italic pl-8">
-                      &ldquo;{card.exampleSentence}&rdquo;
-                    </p>
-                  )}
+                  <p className="mt-1 text-ink-2">{card.definition}</p>
+                  {card.exampleSentence && <p className="mt-1 text-sm italic text-mute">“{card.exampleSentence}”</p>}
                 </div>
-
-                <div className="flex items-center gap-3 self-end sm:self-center">
-                  {card.status === "new" ? (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-                      Từ mới
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-400 flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
-                      {formatRelativeDate(card.nextReviewAt)}
-                    </span>
-                  )}
-
-                  <button
-                    onClick={() => handleStartSpeechPractice(card)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-bold dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300 transition-colors"
-                  >
-                    <Mic className="h-3.5 w-3.5" />
-                    <span>Luyện nói</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Manual Add Card Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Thêm thẻ từ vựng mới</h3>
-            <form onSubmit={handleAddManualCard} className="mt-4 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold uppercase text-slate-500">Từ vựng (Term):</label>
-                    <button
-                      type="button"
-                      onClick={handleLookupCambridge}
-                      disabled={!newTerm.trim() || isLookingUp}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded-lg dark:bg-brand-950 dark:text-brand-300 disabled:opacity-50 transition-colors"
-                      title="Tự động tra phiên âm, từ loại, nghĩa tiếng Việt, câu ví dụ và audio phát âm chuẩn Cambridge"
-                    >
-                      {isLookingUp ? (
-                        <>
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <span>Đang tra...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-3 w-3" />
-                          <span>⚡ Tra Cambridge</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={newTerm}
-                    onChange={(e) => setNewTerm(e.target.value)}
-                    placeholder="VD: pragmatic"
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold uppercase text-slate-500">Phiên âm IPA:</label>
-                  <input
-                    type="text"
-                    value={newPhonetic}
-                    onChange={(e) => setNewPhonetic(e.target.value)}
-                    placeholder="/præɡˈmæt.ɪk/"
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                  />
-                </div>
-              </div>
-
-              {lookupError && (
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50 text-amber-800 text-xs border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{lookupError}</span>
-                </div>
-              )}
-
-              {newAudioUrl && (
-                <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900">
-                  <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                    <span>Đã lấy phát âm Cambridge MP3</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const audio = new Audio(newAudioUrl);
-                      audio.play();
-                    }}
-                    className="flex items-center gap-1 text-[11px] font-bold underline"
-                  >
-                    <Volume2 className="h-3 w-3" />
-                    <span>Nghe thử</span>
-                  </button>
-                </div>
-              )}
-
-              <div>
-                <label className="text-xs font-bold uppercase text-slate-500">Nghĩa tiếng Việt:</label>
-                <input
-                  type="text"
-                  required
-                  value={newDef}
-                  onChange={(e) => setNewDef(e.target.value)}
-                  placeholder="Thực tế, thực dụng"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase text-slate-500">Câu ví dụ ngữ cảnh:</label>
-                <textarea
-                  rows={2}
-                  value={newExample}
-                  onChange={(e) => setNewExample(e.target.value)}
-                  placeholder="We need to adopt a pragmatic approach to meet the deadline."
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                />
-                {availableExamples.length > 1 && (
-                  <div className="mt-2 space-y-1">
-                    <p className="text-[11px] font-semibold text-slate-500">Gợi ý ví dụ khác (bấm để chọn):</p>
-                    <div className="flex flex-col gap-1 max-h-28 overflow-y-auto pr-1">
-                      {availableExamples.slice(0, 4).map((ex, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setNewExample(ex)}
-                          className={`text-left text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
-                            newExample === ex
-                              ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-950/50 dark:border-brand-700 dark:text-brand-300 font-medium"
-                              : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
-                          }`}
-                        >
-                          &ldquo;{ex}&rdquo;
-                        </button>
-                      ))}
+                <div className="flex items-center gap-3 sm:justify-end">
+                  <div className="text-right text-xs leading-relaxed">
+                    <div className={cn("font-semibold", card.status === "mastered" ? "text-primary-ink" : card.status === "learning" ? "text-ink-2" : "text-mute")}>
+                      {STATUS_LABEL[card.status]}
                     </div>
+                    <div className="text-mute">{card.status === "new" ? "Chưa học" : formatRelativeDate(card.nextReviewAt)}</div>
                   </div>
-                )}
-              </div>
+                  <button type="button" onClick={() => handleStartSpeechPractice(card)} className={buttonClass("soft", "sm")}>
+                    <Mic className="h-4 w-4" /> Luyện nói
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAvailableExamples([]);
-                    setShowAddModal(false);
-                  }}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-400"
-                >
-                  Hủy
+      {showAddModal && (
+        <Modal
+          title="Thêm thẻ"
+          description="Gõ từ rồi bấm Tra từ điển để điền sẵn các trường còn lại."
+          onClose={() => { setAvailableExamples([]); setShowAddModal(false); }}
+          footer={
+            <>
+              <button type="button" onClick={() => { setAvailableExamples([]); setShowAddModal(false); }} className={buttonClass("ghost", "md")}>Hủy</button>
+              <button type="submit" form="add-card" disabled={!newTerm.trim() || !newDef.trim()} className={buttonClass("primary", "md")}>Thêm thẻ</button>
+            </>
+          }
+        >
+          <form id="add-card" onSubmit={handleAddManualCard} className="space-y-4">
+            <div>
+              <label htmlFor="term" className="label">Từ vựng</label>
+              <div className="flex gap-2">
+                <input
+                  id="term"
+                  required
+                  value={newTerm}
+                  onChange={(e) => setNewTerm(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleLookupCambridge(); } }}
+                  placeholder="pragmatic"
+                  className="field"
+                />
+                <button type="button" onClick={handleLookupCambridge} disabled={!newTerm.trim() || isLookingUp} className={buttonClass("soft", "md", "shrink-0")}>
+                  {isLookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  Tra từ điển
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700"
-                >
-                  Thêm thẻ
+              </div>
+              {lookupError && (
+                <p role="alert" className="mt-2 flex items-start gap-1.5 text-sm text-poor">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {lookupError} Bạn vẫn có thể tự điền.
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-[1fr_140px] gap-3">
+              <div>
+                <label htmlFor="ipa" className="label">Phiên âm</label>
+                <input id="ipa" value={newPhonetic} onChange={(e) => setNewPhonetic(e.target.value)} placeholder="/præɡˈmæt.ɪk/" className="field" />
+              </div>
+              <div>
+                <label htmlFor="pos" className="label">Từ loại</label>
+                <select id="pos" value={newPartOfSpeech} onChange={(e) => setNewPartOfSpeech(e.target.value)} className="field">
+                  {Array.from(new Set([newPartOfSpeech, "noun", "verb", "adjective", "adverb", "phrase", "preposition"])).map((v) => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {newAudioUrl && (
+              <div className="flex items-center justify-between rounded-[10px] bg-good-soft px-3.5 py-2.5 text-sm text-good">
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" /> Đã có file phát âm từ Cambridge</span>
+                <button type="button" onClick={() => new Audio(newAudioUrl).play()} className="flex items-center gap-1 font-semibold hover:underline">
+                  <Volume2 className="h-4 w-4" /> Nghe thử
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
+            )}
+            <div>
+              <label htmlFor="def" className="label">Nghĩa tiếng Việt</label>
+              <input id="def" required value={newDef} onChange={(e) => setNewDef(e.target.value)} placeholder="thực tế, thực dụng" className="field" />
+            </div>
+            <div>
+              <label htmlFor="ex" className="label">Câu ví dụ <span className="font-normal text-mute">(không bắt buộc)</span></label>
+              <textarea id="ex" rows={2} value={newExample} onChange={(e) => setNewExample(e.target.value)} placeholder="We need a pragmatic approach to meet the deadline." className="field h-auto py-2.5" />
+              {availableExamples.length > 1 && (
+                <div className="mt-2">
+                  <p className="text-xs font-medium text-mute">Ví dụ khác, bấm để chọn:</p>
+                  <div className="mt-1.5 flex max-h-32 flex-col gap-1.5 overflow-y-auto">
+                    {availableExamples.slice(0, 4).map((ex, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setNewExample(ex)}
+                        className={cn(
+                          "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                          newExample === ex ? "border-primary bg-primary-soft text-primary-ink" : "border-line text-ink-2 hover:border-line-strong"
+                        )}
+                      >
+                        “{ex}”
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </form>
+        </Modal>
       )}
 
-      {/* Speech Practice Modal */}
-      {activeSpeechCard && (
-        <SpeechPracticeModal
-          card={activeSpeechCard}
-          onClose={() => setActiveSpeechCard(null)}
-        />
-      )}
-
-      {/* AI Generator Modal */}
-      {showAiModal && (
-        <PhotoToCardModal
-          deckId={deck.id}
-          onAddCards={handleAddAiCards}
-          onClose={() => setShowAiModal(false)}
-        />
-      )}
+      {activeSpeechCard && <SpeechPracticeModal card={activeSpeechCard} onClose={() => setActiveSpeechCard(null)} />}
+      {showAiModal && <PhotoToCardModal deckId={deck.id} onAddCards={handleAddAiCards} onClose={() => setShowAiModal(false)} />}
     </div>
   );
 }

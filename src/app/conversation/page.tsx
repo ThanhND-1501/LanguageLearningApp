@@ -45,7 +45,7 @@ export default function ConversationPage() {
       id: "msg-initial",
       role: "assistant",
       content: SCENARIOS[0].initialMessage,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false }),
     },
   ]);
   const [inputMessage, setInputMessage] = useState("");
@@ -65,7 +65,7 @@ export default function ConversationPage() {
         id: `msg-${Date.now()}`,
         role: "assistant",
         content: sc.initialMessage,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false }),
       },
     ]);
     setUsedWords([]);
@@ -89,7 +89,7 @@ export default function ConversationPage() {
       id: `msg-user-${Date.now()}`,
       role: "user",
       content: userText,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -126,7 +126,7 @@ export default function ConversationPage() {
         id: `msg-bot-${Date.now()}`,
         role: "assistant",
         content: aiReply,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false }),
       };
 
       setMessages((prev) => [...prev, botMsg]);
@@ -151,26 +151,20 @@ export default function ConversationPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+    <div className="mx-auto max-w-[1200px] px-5 py-8 sm:px-8 sm:py-10 space-y-6">
       {/* Header */}
-      <div className="pb-6 border-b border-slate-200 dark:border-slate-800">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-100 text-brand-800 text-xs font-bold uppercase tracking-wider mb-2 dark:bg-brand-950/60 dark:text-brand-300">
-          <MessageSquare className="h-3.5 w-3.5" />
-          <span>AI Native Speaker Roleplay</span>
-        </div>
-        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-          Hội Thoại Nhập Vai Tình Huống AI
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          AI đóng vai người bản xứ và ép bạn phải kích hoạt đúng các từ vựng mục tiêu trong cuộc trò chuyện thực tế.
+      <div className="pb-6 border-b border-line">
+        <h1 className="text-[28px] font-bold tracking-tight text-ink">Hội thoại</h1>
+        <p className="mt-1 text-ink-2">
+          Trò chuyện với AI trong một tình huống thực tế và cố dùng các từ mục tiêu trong câu trả lời của bạn.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Scenarios & Word Goals */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-mute">
               Chọn kịch bản mô phỏng:
             </h3>
 
@@ -182,24 +176,24 @@ export default function ConversationPage() {
                   onClick={() => handleSelectScenario(sc)}
                   className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                     isSelected
-                      ? "border-brand-500 bg-brand-50/70 dark:bg-brand-950/40 dark:border-brand-700"
-                      : "border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+                      ? "border-primary bg-primary-soft"
+                      : "border-line hover:bg-subtle"
                   }`}
                 >
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">{sc.title}</h4>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">{sc.description}</p>
+                  <h4 className="text-sm font-bold text-ink">{sc.title}</h4>
+                  <p className="text-xs text-mute mt-1 line-clamp-2">{sc.description}</p>
                 </div>
               );
             })}
           </div>
 
           {/* Goal Tracker: Target words */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              <h3 className="text-xs font-bold text-mute">
                 Từ mục tiêu cần kích hoạt:
               </h3>
-              <span className="text-xs font-semibold text-brand-600">
+              <span className="text-xs font-semibold text-primary-ink">
                 {usedWords.length} / {selectedScenario.targetWords.length}
               </span>
             </div>
@@ -212,15 +206,15 @@ export default function ConversationPage() {
                     key={word}
                     className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-medium ${
                       isUsed
-                        ? "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 font-bold"
-                        : "bg-slate-50 text-slate-600 border-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400"
+                        ? "bg-good-soft text-good border-good/25 font-bold"
+                        : "bg-subtle text-ink-2 border-line"
                     }`}
                   >
                     <span>{word}</span>
                     {isUsed ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <CheckCircle2 className="h-4 w-4 text-good" />
                     ) : (
-                      <span className="text-[10px] text-slate-400">Chưa dùng</span>
+                      <span className="text-[10px] text-mute">Chưa dùng</span>
                     )}
                   </div>
                 );
@@ -230,27 +224,27 @@ export default function ConversationPage() {
         </div>
 
         {/* Right Column: Interactive Chat Box */}
-        <div className="lg:col-span-8 rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 flex flex-col h-[600px] overflow-hidden">
+        <div className="lg:col-span-8 rounded-2xl border border-line bg-surface shadow-sm flex flex-col h-[600px] overflow-hidden">
           {/* Chat Header */}
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-line flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center font-bold">
+              <div className="h-10 w-10 rounded-xl bg-primary-soft text-primary-ink flex items-center justify-center font-bold">
                 <Bot className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                <h3 className="text-sm font-bold text-ink">
                   {selectedScenario.aiPersona}
                 </h3>
-                <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Đang trực tuyến (AI Native Speaker)
+                <p className="text-xs text-good font-medium flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-good animate-pulse" />
+                  Vai do AI đóng
                 </p>
               </div>
             </div>
 
             <button
               onClick={() => handleSelectScenario(selectedScenario)}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="p-2 rounded-xl text-mute hover:text-ink-2 hover:bg-subtle"
               title="Bắt đầu lại cuộc hội thoại"
             >
               <RotateCcw className="h-4 w-4" />
@@ -269,8 +263,8 @@ export default function ConversationPage() {
                   <div
                     className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
                       isMe
-                        ? "bg-brand-600 text-white"
-                        : "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                        ? "bg-primary text-white"
+                        : "bg-primary-soft text-primary-ink"
                     }`}
                   >
                     {isMe ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
@@ -280,8 +274,8 @@ export default function ConversationPage() {
                     <div
                       className={`p-4 rounded-2xl text-sm leading-relaxed ${
                         isMe
-                          ? "bg-brand-600 text-white rounded-tr-none"
-                          : "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white rounded-tl-none"
+                          ? "bg-primary text-white rounded-tr-none"
+                          : "bg-subtle text-ink rounded-tl-none"
                       }`}
                     >
                       <p>{msg.content}</p>
@@ -289,24 +283,24 @@ export default function ConversationPage() {
                       {!isMe && (
                         <button
                           onClick={() => playNativePronunciation(msg.content)}
-                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 hover:underline dark:text-brand-400"
+                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary-ink hover:underline"
                         >
                           <Volume2 className="h-3 w-3" />
                           <span>Nghe phát âm</span>
                         </button>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-400 px-1">{msg.timestamp}</span>
+                    <span className="text-[10px] text-mute px-1">{msg.timestamp}</span>
                   </div>
                 </div>
               );
             })}
 
             {isTyping && (
-              <div className="flex items-center gap-2 text-xs text-slate-400 pl-11">
-                <span className="animate-bounce">●</span>
-                <span className="animate-bounce [animation-delay:0.2s]">●</span>
-                <span className="animate-bounce [animation-delay:0.4s]">●</span>
+              <div className="flex items-center gap-2 text-xs text-mute pl-11">
+                <span className="animate-pulse">●</span>
+                <span className="animate-pulse [animation-delay:0.2s]">●</span>
+                <span className="animate-pulse [animation-delay:0.4s]">●</span>
                 <span>AI đang suy nghĩ phản hồi...</span>
               </div>
             )}
@@ -315,19 +309,19 @@ export default function ConversationPage() {
           {/* Input Footer */}
           <form
             onSubmit={handleSendMessage}
-            className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-900"
+            className="p-4 border-t border-line flex items-center gap-3 bg-subtle"
           >
             <input
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Gõ tin nhắn tiếng Anh của bạn (hãy dùng từ mục tiêu)..."
-              className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
+              className="flex-1 rounded-xl border border-line px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
             />
             <button
               type="submit"
               disabled={!inputMessage.trim() || isTyping}
-              className="p-2.5 rounded-xl bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 transition-colors shadow-sm"
+              className="p-2.5 rounded-xl bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm"
             >
               <Send className="h-4 w-4" />
             </button>
