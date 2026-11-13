@@ -143,7 +143,9 @@ export default function DeckDetailPage() {
     }
 
     const allCards = getLocalCards();
-    const localDeckCards = allCards.filter((c) => c.deckId === deckId);
+    const localDeckCards = allCards.filter(
+      (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+    );
     setCards(localDeckCards);
 
     if (isSupabaseConfigured()) {
@@ -163,7 +165,7 @@ export default function DeckDetailPage() {
 
         sb.from("cards")
           .select("*")
-          .eq("deck_id", deckId)
+          .or(`deck_id.eq.${deckId},deck_ids.cs.{${deckId}}`)
           .then(({ data, error }) => {
             if (!error && data && data.length > 0) {
               const cloudDeckCards = data.map(mapDbToCard);
@@ -191,7 +193,9 @@ export default function DeckDetailPage() {
 
               setCards(merged);
               // Cache in localStorage alongside other cards
-              const remaining = allStoredCards.filter((c) => c.deckId !== deckId);
+              const remaining = allStoredCards.filter(
+                (c) => c.deckId !== deckId && !(Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+              );
               saveLocalCards([...remaining, ...merged]);
             }
           });
@@ -222,7 +226,11 @@ export default function DeckDetailPage() {
     const allCards = getLocalCards();
     const updated = [newCard, ...allCards];
     saveLocalCards(updated);
-    setCards(updated.filter((c) => c.deckId === deckId));
+    setCards(
+      updated.filter(
+        (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+      )
+    );
 
     recordStudyActivity({
       type: "card_created",
@@ -245,7 +253,11 @@ export default function DeckDetailPage() {
     const allCards = getLocalCards();
     const updated = [...newAiCards, ...allCards];
     saveLocalCards(updated);
-    setCards(updated.filter((c) => c.deckId === deckId));
+    setCards(
+      updated.filter(
+        (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+      )
+    );
   };
 
 

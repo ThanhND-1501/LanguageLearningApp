@@ -42,7 +42,9 @@ export default function StudySessionPage() {
     if (currentDeck) setDeck(currentDeck);
 
     const allCards = getLocalCards();
-    const deckCards = allCards.filter((c) => c.deckId === deckId);
+    const deckCards = allCards.filter(
+      (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+    );
 
     const setupCards = (cardList: Card[]) => {
       const now = Date.now();
@@ -69,7 +71,7 @@ export default function StudySessionPage() {
 
         sb.from("cards")
           .select("*")
-          .eq("deck_id", deckId)
+          .or(`deck_id.eq.${deckId},deck_ids.cs.{${deckId}}`)
           .then(({ data, error }) => {
             if (!error && data && data.length > 0) {
               const cloudDeckCards = data.map(mapDbToCard);
@@ -96,7 +98,9 @@ export default function StudySessionPage() {
               });
 
               setupCards(merged);
-              const remaining = allStoredCards.filter((c) => c.deckId !== deckId);
+              const remaining = allStoredCards.filter(
+                (c) => c.deckId !== deckId && !(Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+              );
               saveLocalCards([...remaining, ...merged]);
             }
           });
@@ -119,7 +123,11 @@ export default function StudySessionPage() {
   const handleRestart = () => {
     setIsFinished(false);
     const allCards = getLocalCards();
-    setStudyCards(allCards.filter((c) => c.deckId === deckId));
+    setStudyCards(
+      allCards.filter(
+        (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+      )
+    );
   };
 
   if (!isAuthChecking && !currentUser) {

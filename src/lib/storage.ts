@@ -319,7 +319,9 @@ export function enrollInDeck(deckId: string, userId?: string): { success: boolea
   const currentCards = getRawStoredCards();
   const existingDeckCardIds = new Set(currentCards.map((c) => c.id));
   const allAvailableCards = [...GLOBAL_CARDS, ...currentCards];
-  const cardsToAdd = allAvailableCards.filter((c) => c.deckId === deckId && !existingDeckCardIds.has(c.id));
+  const cardsToAdd = allAvailableCards.filter(
+    (c) => (c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))) && !existingDeckCardIds.has(c.id)
+  );
 
   if (cardsToAdd.length > 0) {
     // For a newly enrolling user, reset repetition & status to 'new' for clean personal learning
@@ -490,11 +492,15 @@ export function getLocalCards(userId?: string, deckId?: string): Card[] {
 
   // If specific deck requested
   if (deckId) {
-    const matching = allCards.filter((c) => c.deckId === deckId);
+    const matching = allCards.filter(
+      (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+    );
     if (matching.length > 0) return matching;
 
     // Fallback to global cards for previewing
-    return GLOBAL_CARDS.filter((c) => c.deckId === deckId);
+    return GLOBAL_CARDS.filter(
+      (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+    );
   }
 
   // If Demo / Guest user or called without explicit userId filter, return all cards
@@ -506,7 +512,11 @@ export function getLocalCards(userId?: string, deckId?: string): Card[] {
   const userDecks = getLocalDecks(currentUserId);
   const userDeckIds = new Set(userDecks.map((d) => d.id));
 
-  return allCards.filter((c) => userDeckIds.has(c.deckId));
+  return allCards.filter(
+    (c) =>
+      userDeckIds.has(c.deckId) ||
+      (Array.isArray(c.deckIds) && c.deckIds.some((id) => userDeckIds.has(id)))
+  );
 }
 
 export function saveLocalCards(cards: Card[]): void {

@@ -80,6 +80,28 @@ describe("Cloud Sync & Mapping Engine (sync.ts)", () => {
       assert.strictEqual(dbCard.easiness_factor, 2.8);
       assert.strictEqual(dbCard.interval_days, 21);
       assert.strictEqual(dbCard.next_review_at, "2026-11-20T00:00:00.000Z");
+      assert.deepStrictEqual(dbCard.deck_ids, ["deck-123"]);
+    });
+
+    it("should preserve multiple deck_ids in Many-to-Many mapping", () => {
+      const card: Card = {
+        id: "card-999",
+        deckId: "deck-ielts",
+        deckIds: ["deck-ielts", "deck-toefl", "deck-oxford"],
+        term: "ubiquitous",
+        definition: "phổ biến khắp nơi",
+        status: "new",
+        repetition: 0,
+        easinessFactor: 2.5,
+        intervalDays: 0,
+        nextReviewAt: "2026-11-20T00:00:00.000Z",
+      };
+
+      const dbRecord = mapCardToDb(card);
+      assert.deepStrictEqual(dbRecord.deck_ids, ["deck-ielts", "deck-toefl", "deck-oxford"]);
+
+      const mappedBack = mapDbToCard(dbRecord);
+      assert.deepStrictEqual(mappedBack.deckIds, ["deck-ielts", "deck-toefl", "deck-oxford"]);
     });
 
     it("should correctly convert Database Card to Domain Card format", () => {
