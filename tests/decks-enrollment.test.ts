@@ -88,5 +88,22 @@ describe("Global Decks & Account Isolation (storage.ts)", () => {
     assert.strictEqual(isDeckEnrolled("deck-ielts-mastery", newUser.id), false);
     assert.strictEqual(getLocalDecks(newUser.id).length, 0);
   });
+
+  it("should guard card addition by requiring deck enrollment in personal study collection", async () => {
+    const user = await registerLocalUser("Grace Hopper", "grace@test.com", "secure123");
+    const testDeckId = "deck-silicon-valley";
+
+    // Grace hasn't enrolled yet
+    assert.strictEqual(isDeckEnrolled(testDeckId, user.id), false);
+
+    // After choosing to enroll/study the deck
+    const enrollResult = enrollInDeck(testDeckId, user.id);
+    assert.strictEqual(enrollResult.success, true);
+    assert.strictEqual(isDeckEnrolled(testDeckId, user.id), true);
+
+    // Cards are now present in Grace's personal study collection
+    const personalCards = getLocalCards(user.id, testDeckId);
+    assert.ok(personalCards.length > 0);
+  });
 });
 

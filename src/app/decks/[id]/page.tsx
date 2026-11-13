@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Deck, Card, UserProfile } from "@/types";
-import { getLocalDecks, getLocalCards, saveLocalCards } from "@/lib/storage";
+import { getLocalDecks, getLocalCards, saveLocalCards, isDeckEnrolled, enrollInDeck } from "@/lib/storage";
 import { getActiveUser, recordStudyActivity } from "@/lib/auth";
 import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 import { mapDbToDeck, mapDbToCard } from "@/lib/sync";
@@ -12,7 +12,7 @@ import { playNativePronunciation } from "@/lib/audio";
 import { SpeechPracticeModal } from "@/components/speaking/SpeechPracticeModal";
 import { PhotoToCardModal } from "@/components/ai/PhotoToCardModal";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { ArrowLeft, CheckCircle2, ImagePlus, Loader2, Mic, PenLine, Plus, Search, Headphones, Volume2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Bookmark, CheckCircle2, ImagePlus, Loader2, Mic, PenLine, Plus, Search, Headphones, Volume2, AlertCircle } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { buttonClass } from "@/components/ui/button";
 import { DeckSpine, MemoryRamp } from "@/components/deck/DeckCard";
@@ -33,18 +33,60 @@ export default function DeckDetailPage() {
   const [activeSpeechCard, setActiveSpeechCard] = useState<Card | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "due" | "new" | "learning" | "mastered">("all");
 
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
   useEffect(() => {
-    setCurrentUser(getActiveUser());
+    const user = getActiveUser();
+    setCurrentUser(user);
+    if (user) {
+      setIsEnrolled(isDeckEnrolled(deckId, user.id));
+    }
     setIsAuthChecking(false);
-  }, []);
+  }, [deckId]);
+
+  const handleEnroll = () => {
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
+    const res = enrollInDeck(deckId, currentUser.id);
+    if (res.success && res.deck) {
+      setIsEnrolled(true);
+      recordStudyActivity(
+        {
+          type: "card_created",
+          title: "Thêm bộ từ để học",
+          description: `Đã thêm "${res.deck.title}" vào bộ từ của bạn`,
+          metadata: { deckId, cardsCount: cards.length },
+        },
+        currentUser.id
+      );
+      showToast(`Đã thêm “${res.deck.title}” vào bộ từ của bạn.`);
+      const allCards = getLocalCards(currentUser.id);
+      const localDeckCards = allCards.filter(
+        (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
+      );
+      if (localDeckCards.length > 0) {
+        setCards(localDeckCards);
+      }
+    }
+  };
 
   const handleOpenAiModal = () => {
     if (!currentUser) {
       router.push("/login");
       return;
+    }
+    if (!isEnrolled) {
+      handleEnroll();
     }
     setShowAiModal(true);
   };
@@ -53,6 +95,9 @@ export default function DeckDetailPage() {
     if (!currentUser) {
       router.push("/login");
       return;
+    }
+    if (!isEnrolled) {
+      handleEnroll();
     }
     setShowAddModal(true);
   };
@@ -134,15 +179,17 @@ export default function DeckDetailPage() {
   };
 
   useEffect(() => {
-    if (!getActiveUser()) return;
+    const user = getActiveUser();
+    if (!user) return;
 
-    const allDecks = getLocalDecks();
+    setIsEnrolled(isDeckEnrolled(deckId, user.id));
+    const allDecks = getLocalDecks(user.id);
     const foundDeck = allDecks.find((d) => d.id === deckId);
     if (foundDeck) {
       setDeck(foundDeck);
     }
 
-    const allCards = getLocalCards();
+    const allCards = getLocalCards(user.id);
     const localDeckCards = allCards.filter(
       (c) => c.deckId === deckId || (Array.isArray(c.deckIds) && c.deckIds.includes(deckId))
     );
@@ -338,7 +385,29 @@ export default function DeckDetailPage() {
 
         {/* Study panel */}
         <section aria-label="Ôn tập" className="rounded-2xl border border-line bg-surface p-5 shadow-raised">
-          {p.total === 0 ? (
+          {!isEnrolled ? (
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-ink">
+                  <Bookmark className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-semibold text-base">Bộ từ vựng Thư viện</p>
+                  <p className="text-xs text-mute">Chưa thêm vào danh sách học cá nhân</p>
+                </div>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-ink-2">
+                Hãy thêm bộ từ này vào danh sách cá nhân để ghi nhận tiến độ thuật toán SM-2 và mở khóa chức năng thêm thẻ từ mới.
+              </p>
+              <button
+                type="button"
+                onClick={handleEnroll}
+                className={buttonClass("primary", "md", "mt-4 w-full")}
+              >
+                <Plus className="h-4 w-4" /> Thêm vào bộ từ của tôi để học
+              </button>
+            </div>
+          ) : p.total === 0 ? (
             <>
               <p className="font-semibold">Bộ từ chưa có thẻ nào</p>
               <p className="mt-1 text-sm text-ink-2">Thêm thẻ để bắt đầu ôn tập.</p>
@@ -380,15 +449,24 @@ export default function DeckDetailPage() {
       {/* Cards */}
       <section aria-labelledby="cards-title" className="mt-10">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="cards-title" className="text-lg font-bold tracking-tight">Thẻ trong bộ</h2>
-          <div className="flex gap-2.5">
-            <button type="button" onClick={handleOpenAiModal} className={buttonClass("secondary", "sm")}>
-              <ImagePlus className="h-4 w-4" /> Tạo bằng AI
-            </button>
-            <button type="button" onClick={handleOpenAddModal} className={buttonClass("primary", "sm")}>
-              <Plus className="h-4 w-4" /> Thêm thẻ
-            </button>
+          <div>
+            <h2 id="cards-title" className="text-lg font-bold tracking-tight">Thẻ trong bộ</h2>
+            {!isEnrolled && (
+              <p className="mt-0.5 text-xs text-mute">
+                Đang xem trước danh sách từ. Thêm vào bộ từ của bạn để kích hoạt chức năng thêm thẻ.
+              </p>
+            )}
           </div>
+          {isEnrolled && (
+            <div className="flex gap-2.5">
+              <button type="button" onClick={handleOpenAiModal} className={buttonClass("secondary", "sm")}>
+                <ImagePlus className="h-4 w-4" /> Tạo bằng AI
+              </button>
+              <button type="button" onClick={handleOpenAddModal} className={buttonClass("primary", "sm")}>
+                <Plus className="h-4 w-4" /> Thêm thẻ
+              </button>
+            </div>
+          )}
         </div>
 
         {p.total > 0 && (
@@ -421,7 +499,16 @@ export default function DeckDetailPage() {
           <div className="mt-4 flex flex-col items-center rounded-card border border-dashed border-line-strong px-6 py-14 text-center">
             <EmptyCards className="h-auto w-44" />
             <p className="mt-4 font-semibold">Chưa có thẻ nào</p>
-            <p className="mt-1 max-w-sm text-sm text-ink-2">Gõ một từ và tra từ điển Cambridge để điền sẵn phiên âm, nghĩa và câu ví dụ, hoặc tạo hàng loạt bằng AI từ ảnh chụp.</p>
+            <p className="mt-1 max-w-sm text-sm text-ink-2">
+              {isEnrolled
+                ? "Gõ một từ và tra từ điển Cambridge để điền sẵn phiên âm, nghĩa và câu ví dụ, hoặc tạo hàng loạt bằng AI từ ảnh chụp."
+                : "Thêm bộ từ này vào danh sách cá nhân để bắt đầu tạo thẻ mới."}
+            </p>
+            {!isEnrolled && (
+              <button type="button" onClick={handleEnroll} className={buttonClass("primary", "sm", "mt-4")}>
+                <Plus className="h-4 w-4" /> Thêm vào bộ từ của tôi
+              </button>
+            )}
           </div>
         ) : visible.length === 0 ? (
           <p className="mt-4 rounded-card border border-line bg-surface px-5 py-10 text-center text-ink-2">Không có thẻ nào khớp bộ lọc.</p>
@@ -555,6 +642,16 @@ export default function DeckDetailPage() {
 
       {activeSpeechCard && <SpeechPracticeModal card={activeSpeechCard} onClose={() => setActiveSpeechCard(null)} />}
       {showAiModal && <PhotoToCardModal deckId={deck.id} onAddCards={handleAddAiCards} onClose={() => setShowAiModal(false)} />}
+
+      {toast && (
+        <div
+          role="status"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm font-medium shadow-lift animate-in fade-in slide-in-from-bottom-2"
+        >
+          <CheckCircle2 className="h-4 w-4 text-primary" />
+          <span>{toast}</span>
+        </div>
+      )}
     </div>
   );
 }
