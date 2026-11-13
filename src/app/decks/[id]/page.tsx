@@ -5,8 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Deck, Card, UserProfile } from "@/types";
 import { getLocalDecks, getLocalCards, saveLocalCards, isDeckEnrolled, enrollInDeck } from "@/lib/storage";
-import { getActiveUser, recordStudyActivity } from "@/lib/auth";
-import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
+import { getActiveUser, recordStudyActivity, syncSupabaseSessionToLocalUser } from "@/lib/auth";
+import { isSupabaseConfigured, getSupabase, getSessionUser } from "@/lib/supabase";
 import { mapDbToDeck, mapDbToCard } from "@/lib/sync";
 import { playNativePronunciation } from "@/lib/audio";
 import { SpeechPracticeModal } from "@/components/speaking/SpeechPracticeModal";
@@ -48,6 +48,15 @@ export default function DeckDetailPage() {
     setCurrentUser(user);
     if (user) {
       setIsEnrolled(isDeckEnrolled(deckId, user.id));
+    }
+    if (isSupabaseConfigured()) {
+      getSessionUser().then((sbUser) => {
+        if (sbUser && sbUser.email) {
+          const synced = syncSupabaseSessionToLocalUser(sbUser);
+          setCurrentUser(synced);
+          setIsEnrolled(isDeckEnrolled(deckId, synced.id));
+        }
+      });
     }
     setIsAuthChecking(false);
   }, [deckId]);

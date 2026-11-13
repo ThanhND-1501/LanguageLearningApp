@@ -13,6 +13,7 @@ import {
   loginDemoUser,
   logoutUser,
   clearAuthStorageForTesting,
+  syncSupabaseSessionToLocalUser,
   DEMO_USER,
 } from "../src/lib/auth";
 
@@ -104,6 +105,56 @@ describe("Global Decks & Account Isolation (storage.ts)", () => {
     // Cards are now present in Grace's personal study collection
     const personalCards = getLocalCards(user.id, testDeckId);
     assert.ok(personalCards.length > 0);
+  });
+
+  it("should sync cloud enrolled decks to a fresh browser session", () => {
+    // Simulating a fresh browser logging in via Supabase Auth
+    const freshSessionUser = syncSupabaseSessionToLocalUser({
+      id: "supabase-user-cross-browser",
+      email: "fresh@test.com",
+      user_metadata: {
+        full_name: "Fresh Device User",
+        enrolled_deck_ids: ["deck-ielts-mastery", "deck-silicon-valley"],
+      },
+    });
+
+    assert.strictEqual(freshSessionUser.enrolledDeckIds?.length, 2);
+    assert.strictEqual(isDeckEnrolled("deck-ielts-mastery", freshSessionUser.id), true);
+    assert.strictEqual(isDeckEnrolled("deck-silicon-valley", freshSessionUser.id), true);
+
+    const decks = getLocalDecks(freshSessionUser.id);
+    assert.strictEqual(decks.length, 2);
+  });
+
+  it("should recover enrolled decks from study activities if cloud metadata was missing them", () => {
+    // Simulating legacy user whose metadata omitted enrolled_deck_ids but has activity history
+    const userWithActivities = syncSupabaseSessionToLocalUser({
+      id: "user-legacy-recovery",
+      email: "legacy@test.com",
+      user_metadata: {
+        full_name: "Legacy User",
+        study_activities: [
+          {
+            id: "act-1",
+            type: "card_created",
+            title: "Đăng ký học bộ từ vựng",
+            metadata: { deckId: "deck-ielts-mastery" },
+            timestamp: new Date().toISOString(),
+          },
+          {
+            id: "act-2",
+            type: "card_created",
+            title: "Đăng ký học bộ từ vựng",
+            metadata: { deckId: "deck-silicon-valley" },
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+
+    assert.strictEqual(userWithActivities.enrolledDeckIds?.length, 2);
+    assert.strictEqual(isDeckEnrolled("deck-ielts-mastery", userWithActivities.id), true);
+    assert.strictEqual(isDeckEnrolled("deck-silicon-valley", userWithActivities.id), true);
   });
 });
 
