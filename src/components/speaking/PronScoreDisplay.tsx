@@ -18,26 +18,26 @@ export function PronScoreDisplay({ scores, audioUrl }: PronScoreDisplayProps) {
   ];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
       {/* Header with Overall PronScore */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-line">
         <div>
           <div className="flex items-center gap-2">
-            <Award className="h-5 w-5 text-brand-600" />
-            <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+            <Award className="h-5 w-5 text-primary-ink" />
+            <h4 className="text-lg font-bold text-ink">
               Bảng điểm phát âm PronScore™
             </h4>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-mute mt-0.5">
             Phân tích 4 chiều âm học chuẩn xác bằng Trí tuệ Nhân tạo
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end">
-            <span className="text-3xl font-black text-brand-600 dark:text-brand-400">
+            <span className="text-3xl font-bold text-primary-ink">
               {scores.pronScore}
-              <span className="text-sm font-normal text-slate-400">/100</span>
+              <span className="text-sm font-normal text-mute">/100</span>
             </span>
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${badgeInfo.bg} ${badgeInfo.text} ${badgeInfo.border}`}>
               {badgeInfo.label}
@@ -48,10 +48,10 @@ export function PronScoreDisplay({ scores, audioUrl }: PronScoreDisplayProps) {
 
       {/* Audio Playback Player */}
       {audioUrl && (
-        <div className="mt-5 p-3.5 rounded-xl bg-slate-50 border border-slate-200 dark:bg-slate-800/40 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="mt-5 p-3.5 rounded-xl bg-subtle border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Volume2 className="h-4 w-4 text-brand-600 shrink-0" />
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+            <Volume2 className="h-4 w-4 text-primary-ink shrink-0" />
+            <span className="text-xs font-semibold text-ink-2">
               Nghe lại bản thu âm của bạn:
             </span>
           </div>
@@ -60,22 +60,22 @@ export function PronScoreDisplay({ scores, audioUrl }: PronScoreDisplayProps) {
       )}
 
       {/* AI Telemetry & Verification Panel */}
-      <div className="mt-4 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20 text-xs">
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-emerald-100 dark:border-emerald-900/40">
+      <div className="mt-4 p-4 rounded-xl border border-good/25 bg-good-soft text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-good/25">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-good opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-good"></span>
             </span>
-            <span className="font-semibold text-emerald-900 dark:text-emerald-300">
+            <span className="font-semibold text-good">
               Xác thực AI chấm điểm:
             </span>
-            <span className="font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/60 px-2 py-0.5 rounded-md">
+            <span className="font-semibold text-good bg-good-soft px-2 py-0.5 rounded-md">
               {scores.provider || "Google Gemini 2.5 Flash Audio"}
             </span>
           </div>
 
-          <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+          <div className="flex items-center gap-3 text-[11px] text-mute">
             {typeof scores.audioSizeBytes === "number" && scores.audioSizeBytes > 0 && (
               <span className="flex items-center gap-1">
                 <HardDrive className="h-3 w-3" />
@@ -93,10 +93,10 @@ export function PronScoreDisplay({ scores, audioUrl }: PronScoreDisplayProps) {
 
         {scores.recognizedTranscript && (
           <div className="mt-2.5">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+            <span className="text-[11px] font-semibold text-mute block mb-1">
               Văn bản AI nghe thấy từ giọng bạn:
             </span>
-            <div className="p-2.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-emerald-200/60 dark:border-emerald-900/40 text-slate-800 dark:text-slate-200 font-medium italic">
+            <div className="p-2.5 rounded-lg bg-white/80 border border-good/25 text-ink font-medium italic">
               &ldquo;{scores.recognizedTranscript}&rdquo;
             </div>
           </div>
@@ -107,17 +107,17 @@ export function PronScoreDisplay({ scores, audioUrl }: PronScoreDisplayProps) {
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
         {metrics.map((m) => {
           const mColor =
-            m.value >= 80 ? "bg-emerald-500" : m.value >= 60 ? "bg-amber-400" : "bg-rose-500";
+            m.value >= 80 ? "bg-good" : m.value >= 60 ? "bg-fair" : "bg-poor";
           return (
-            <div key={m.label} className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
+            <div key={m.label} className="p-3.5 rounded-xl bg-subtle border border-line">
               <div className="flex items-center justify-between text-xs font-semibold mb-1">
-                <span className="text-slate-700 dark:text-slate-300">{m.label}</span>
+                <span className="text-ink-2">{m.label}</span>
                 <span className="font-mono">{m.value}%</span>
               </div>
-              <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+              <div className="h-2 w-full rounded-full bg-line overflow-hidden">
                 <div className={`h-full ${mColor} transition-all duration-500`} style={{ width: `${m.value}%` }} />
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">{m.desc}</p>
+              <p className="text-[10px] text-mute mt-1">{m.desc}</p>
             </div>
           );
         })}
@@ -125,20 +125,20 @@ export function PronScoreDisplay({ scores, audioUrl }: PronScoreDisplayProps) {
 
       {/* Word-by-word Breakdown */}
       {scores.wordScores && scores.wordScores.length > 0 && (
-        <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+        <div className="mt-6 pt-5 border-t border-line">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-bold text-mute">
               Đánh giá chi tiết từng từ:
             </span>
-            <div className="flex items-center gap-3 text-[11px] text-slate-400">
+            <div className="flex items-center gap-3 text-[11px] text-mute">
               <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" /> &ge;80
+                <span className="h-2 w-2 rounded-full bg-good" /> &ge;80
               </span>
               <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-amber-400" /> 60-79
+                <span className="h-2 w-2 rounded-full bg-fair" /> 60-79
               </span>
               <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-rose-500" /> &lt;60
+                <span className="h-2 w-2 rounded-full bg-poor" /> &lt;60
               </span>
             </div>
           </div>
@@ -147,10 +147,10 @@ export function PronScoreDisplay({ scores, audioUrl }: PronScoreDisplayProps) {
             {scores.wordScores.map((w, idx) => {
               const colorCls =
                 w.score >= 80
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                  ? "bg-good-soft text-good border-good/25"
                   : w.score >= 60
-                  ? "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
-                  : "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800";
+                  ? "bg-fair-soft text-fair border-fair/25"
+                  : "bg-poor-soft text-poor border-poor/25";
 
               return (
                 <div
@@ -158,7 +158,7 @@ export function PronScoreDisplay({ scores, audioUrl }: PronScoreDisplayProps) {
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium shadow-xs ${colorCls}`}
                 >
                   <span>{w.word}</span>
-                  <span className="font-mono text-[10px] opacity-80">({w.score})</span>
+                  <span className="text-[10px] opacity-80">({w.score})</span>
                 </div>
               );
             })}

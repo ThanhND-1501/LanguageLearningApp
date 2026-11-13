@@ -33,24 +33,24 @@ export function getScoreBadgeColor(score: number): {
 } {
   if (score >= 80) {
     return {
-      bg: "bg-emerald-50 dark:bg-emerald-950/40",
-      text: "text-emerald-700 dark:text-emerald-300",
-      border: "border-emerald-300 dark:border-emerald-800",
+      bg: "bg-good-soft",
+      text: "text-good",
+      border: "border-good/25",
       label: "Xuất sắc (Native-like)",
     };
   }
   if (score >= 60) {
     return {
-      bg: "bg-amber-50 dark:bg-amber-950/40",
-      text: "text-amber-700 dark:text-amber-300",
-      border: "border-amber-300 dark:border-amber-800",
+      bg: "bg-fair-soft",
+      text: "text-fair",
+      border: "border-fair/25",
       label: "Khá (Understandable)",
     };
   }
   return {
-    bg: "bg-rose-50 dark:bg-rose-950/40",
-    text: "text-rose-700 dark:text-rose-300",
-    border: "border-rose-300 dark:border-rose-800",
+    bg: "bg-poor-soft",
+    text: "text-poor",
+    border: "border-poor/25",
     label: "Cần cải thiện",
   };
 }

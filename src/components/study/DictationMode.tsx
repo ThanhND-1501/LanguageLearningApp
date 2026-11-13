@@ -64,19 +64,19 @@ export function DictationMode({ cards, onRateCard, onFinishSession }: DictationM
 
   return (
     <div className="mx-auto max-w-xl w-full">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-lg dark:border-slate-800 dark:bg-slate-900">
-        <div className="text-xs font-semibold uppercase text-slate-400 mb-2">
-          Câu {currentIndex + 1} / {cards.length} • Nghe chép chính tả (Dictation)
+      <div className="rounded-2xl border border-line bg-surface p-8 shadow-lift">
+        <div className="text-xs font-semibold text-mute mb-2">
+          Câu {currentIndex + 1} / {cards.length} · Nghe chép
         </div>
 
         {/* Audio Listen Buttons */}
-        <div className="my-6 flex flex-col items-center justify-center p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-          <p className="text-xs font-semibold text-slate-500 mb-4">Nhấn nút để nghe câu mẫu:</p>
+        <div className="my-6 flex flex-col items-center justify-center p-6 rounded-2xl bg-subtle">
+          <p className="text-xs font-semibold text-mute mb-4">Nhấn nút để nghe câu mẫu:</p>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handlePlayAudio}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 text-white font-medium hover:bg-brand-700 shadow-md transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover shadow-raised transition-colors"
             >
               <Volume2 className="h-4 w-4" />
               <span>Tốc độ thường</span>
@@ -84,7 +84,7 @@ export function DictationMode({ cards, onRateCard, onFinishSession }: DictationM
             <button
               type="button"
               onClick={handlePlaySlow}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 font-medium hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-line bg-surface text-ink-2 font-medium hover:bg-subtle"
             >
               <RotateCcw className="h-4 w-4" />
               <span>Chậm (0.7x)</span>
@@ -101,14 +101,14 @@ export function DictationMode({ cards, onRateCard, onFinishSession }: DictationM
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             placeholder="Gõ lại chính xác câu bạn nghe được..."
-            className="w-full rounded-2xl border border-slate-200 p-4 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            className="w-full rounded-2xl border border-line p-4 text-base font-medium text-ink placeholder:text-mute focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary"
           />
 
           {!checked ? (
             <button
               type="submit"
               disabled={!inputVal.trim()}
-              className="w-full rounded-xl bg-brand-600 py-3.5 font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
+              className="w-full rounded-xl bg-primary py-3.5 font-semibold text-white hover:bg-primary-hover disabled:opacity-50 transition-colors"
             >
               Kiểm tra
             </button>
@@ -117,8 +117,8 @@ export function DictationMode({ cards, onRateCard, onFinishSession }: DictationM
               <div
                 className={`p-4 rounded-2xl ${
                   isCorrect
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
-                    : "bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300"
+                    ? "bg-good-soft text-good border border-good/25"
+                    : "bg-poor-soft text-poor border border-poor/25"
                 }`}
               >
                 <p className="font-bold text-sm">
@@ -128,7 +128,7 @@ export function DictationMode({ cards, onRateCard, onFinishSession }: DictationM
                   &ldquo;{currentCard.exampleSentence || currentCard.term}&rdquo;
                 </p>
                 {currentCard.exampleTranslation && (
-                  <p className="text-xs text-slate-500 mt-1 italic">
+                  <p className="text-xs text-mute mt-1 italic">
                     {currentCard.exampleTranslation}
                   </p>
                 )}
@@ -137,7 +137,7 @@ export function DictationMode({ cards, onRateCard, onFinishSession }: DictationM
               <button
                 type="button"
                 onClick={handleNext}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand-600 py-3.5 font-semibold text-white hover:bg-brand-700 transition-colors"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-semibold text-white hover:bg-primary-hover transition-colors"
               >
                 <span>Câu tiếp theo</span>
                 <ArrowRight className="h-4 w-4" />

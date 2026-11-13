@@ -242,38 +242,38 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
 
   const getFileIcon = (fileName: string) => {
     const l = fileName.toLowerCase();
-    if (/\.(png|jpe?g|webp)$/.test(l)) return <ImageIcon className="h-6 w-6 text-brand-600" />;
-    return <FileText className="h-6 w-6 text-indigo-600" />;
+    if (/\.(png|jpe?g|webp)$/.test(l)) return <ImageIcon className="h-6 w-6 text-primary-ink" />;
+    return <FileText className="h-6 w-6 text-primary-ink" />;
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-3xl rounded-3xl bg-white p-6 sm:p-8 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800 my-8">
+      <div className="relative w-full max-w-3xl rounded-2xl bg-surface p-6 sm:p-8 shadow-lift border border-line my-8">
         {/* Header */}
-        <div className="flex items-center justify-between pb-5 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between pb-5 border-b border-line">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400">
+            <div className="p-2.5 rounded-2xl bg-primary-soft text-primary-ink">
               <Upload className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+              <h2 className="text-xl font-bold text-ink">
                 Tải Tài Liệu Tạo Bộ Từ Vựng Cá Nhân
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-mute mt-0.5">
                 Bóc tách tự động từ Ảnh chụp, file PDF, Word (.docx) hoặc ghi chú văn bản
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            className="p-2 rounded-full hover:bg-subtle text-mute hover:text-ink-2 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {errorMsg && (
-          <div className="mt-4 flex items-center gap-2 p-3.5 rounded-xl bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 text-xs font-medium border border-rose-200 dark:border-rose-900">
+          <div className="mt-4 flex items-center gap-2 p-3.5 rounded-xl bg-poor-soft text-poor text-xs font-medium border border-poor/25">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{errorMsg}</span>
           </div>
@@ -292,8 +292,8 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
               onClick={() => fileInputRef.current?.click()}
               className={`relative flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-200 ${
                 isDragging
-                  ? "border-brand-500 bg-brand-50/50 dark:bg-brand-950/30 scale-[1.01]"
-                  : "border-slate-200 hover:border-brand-400 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40"
+                  ? "border-primary bg-primary-soft scale-[1.01]"
+                  : "border-line hover:border-primary bg-subtle/50"
               }`}
             >
               <input
@@ -306,32 +306,32 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
 
               {file ? (
                 <div className="flex items-center gap-4 text-left">
-                  <div className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                  <div className="p-3 bg-surface rounded-xl shadow-sm border border-line">
                     {getFileIcon(file.name)}
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+                    <p className="font-semibold text-ink text-sm">
                       {file.name}
                     </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-mute mt-0.5">
                       {(file.size / 1024).toFixed(1)} KB • Bấm để chọn file khác
                     </p>
                   </div>
-                  <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                  <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-good bg-good-soft px-2.5 py-1 rounded-full border border-good/25">
                     <CheckCircle2 className="h-3.5 w-3.5" /> Sẵn sàng
                   </span>
                 </div>
               ) : (
                 <div className="text-center space-y-2">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100 dark:bg-brand-950/80 text-brand-600 dark:text-brand-400">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-soft text-primary-ink">
                     <Upload className="h-7 w-7" />
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-700 dark:text-slate-300 text-sm">
+                    <p className="font-semibold text-ink-2 text-sm">
                       Kéo thả tệp tin vào đây, hoặc{" "}
-                      <span className="text-brand-600 underline">chọn từ thiết bị</span>
+                      <span className="text-primary-ink underline">chọn từ thiết bị</span>
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-mute mt-1">
                       Hỗ trợ Ảnh giáo trình (.png, .jpg), Sách (.pdf), Word (.docx), Ghi chú (.txt, .md) • Tối đa 25MB
                     </p>
                   </div>
@@ -342,17 +342,17 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
             {/* Options Form */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-ink-2 mb-1.5">
                   Mục tiêu lưu trữ
                 </label>
-                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-semibold">
+                <div className="grid grid-cols-2 gap-2 p-1 bg-subtle rounded-xl text-xs font-semibold">
                   <button
                     type="button"
                     onClick={() => setMode("new_deck")}
                     className={`py-2 px-3 rounded-lg transition-all ${
                       mode === "new_deck"
-                        ? "bg-white text-brand-600 shadow-sm dark:bg-slate-700 dark:text-brand-300"
-                        : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                        ? "bg-surface text-primary-ink shadow-sm"
+                        : "text-mute hover:text-ink"
                     }`}
                   >
                     Tạo bộ từ mới
@@ -363,8 +363,8 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
                     disabled={existingDecks.length === 0}
                     className={`py-2 px-3 rounded-lg transition-all ${
                       mode === "existing_deck"
-                        ? "bg-white text-brand-600 shadow-sm dark:bg-slate-700 dark:text-brand-300"
-                        : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-40"
+                        ? "bg-surface text-primary-ink shadow-sm"
+                        : "text-mute hover:text-ink disabled:opacity-40"
                     }`}
                   >
                     Thêm vào bộ sẵn có
@@ -373,13 +373,13 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-ink-2 mb-1.5">
                   Trình độ từ vựng mục tiêu
                 </label>
                 <select
                   value={targetLevel}
                   onChange={(e) => setLevel(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full px-3 py-2 rounded-xl border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="B1">B1 — Trung cấp (Giao tiếp thường nhật)</option>
                   <option value="B2-C1">B2-C1 — Trung cao cấp (IELTS 6.5 - 7.5)</option>
@@ -390,9 +390,9 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
             </div>
 
             {mode === "new_deck" ? (
-              <div className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
+              <div className="space-y-3 p-4 rounded-2xl bg-subtle border border-line">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  <label className="block text-xs font-semibold text-ink-2 mb-1">
                     Tên bộ từ vựng mới
                   </label>
                   <input
@@ -400,11 +400,11 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
                     value={deckTitle}
                     onChange={(e) => setDeckTitle(e.target.value)}
                     placeholder="VD: Từ vựng Chương 3 Sinh học"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3.5 py-2 rounded-xl border border-line bg-surface text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  <label className="block text-xs font-semibold text-ink-2 mb-1">
                     Mô tả ngắn
                   </label>
                   <input
@@ -412,19 +412,19 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
                     value={deckDesc}
                     onChange={(e) => setDeckDesc(e.target.value)}
                     placeholder="VD: Thuật ngữ cốt lõi phục vụ bài thi tuần tới"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3.5 py-2 rounded-xl border border-line bg-surface text-xs text-ink-2 focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
               </div>
             ) : (
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-ink-2 mb-1">
                   Chọn bộ từ vựng đích
                 </label>
                 <select
                   value={targetDeckId}
                   onChange={(e) => setTargetDeckId(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full px-3 py-2.5 rounded-xl border border-line bg-surface text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   {existingDecks.map((d) => (
                     <option key={d.id} value={d.id}>
@@ -435,9 +435,9 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between pt-4 border-t border-line">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Số từ cần trích xuất:</span>
+                <span className="text-xs text-mute">Số từ cần trích xuất:</span>
                 <div className="flex gap-1.5">
                   {[5, 8, 10, 15].map((cnt) => (
                     <button
@@ -446,8 +446,8 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
                       onClick={() => setCount(cnt)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                         targetCount === cnt
-                          ? "bg-brand-600 text-white"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                          ? "bg-primary text-white"
+                          : "bg-subtle text-ink-2 hover:bg-line"
                       }`}
                     >
                       {cnt}
@@ -460,7 +460,7 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
                 type="button"
                 disabled={!file}
                 onClick={handleStartExtraction}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Sparkles className="h-4 w-4" />
                 <span>Trích xuất bằng AI</span>
@@ -476,14 +476,14 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
         {step === "extracting" && (
           <div className="py-16 text-center space-y-4">
             <div className="relative mx-auto flex h-16 w-16 items-center justify-center">
-              <Loader2 className="h-14 w-14 animate-spin text-brand-600" />
-              <Sparkles className="h-6 w-6 text-brand-500 absolute" />
+              <Loader2 className="h-14 w-14 animate-spin text-primary-ink" />
+              <Sparkles className="h-6 w-6 text-primary-ink absolute" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              <h3 className="text-lg font-bold text-ink">
                 AI Đang Phân Tích & Bóc Tách Tài Liệu
               </h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              <p className="text-xs text-mute mt-1 max-w-md mx-auto">
                 Đang đọc hiểu ngữ cảnh tài liệu &ldquo;{file?.name}&rdquo;, nhận diện thuật ngữ học thuật và xây dựng định nghĩa, phiên âm IPA cùng câu ví dụ...
               </p>
             </div>
@@ -495,9 +495,9 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
         {/* ------------------------------------------------------------------ */}
         {step === "review" && (
           <div className="mt-5 space-y-5">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-brand-50/60 dark:bg-brand-950/40 rounded-2xl border border-brand-200/60 dark:border-brand-900/60">
-              <div className="flex items-center gap-2 text-xs text-brand-900 dark:text-brand-300">
-                <CheckCircle2 className="h-4 w-4 text-brand-600 shrink-0" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-primary-soft rounded-2xl border border-primary/25">
+              <div className="flex items-center gap-2 text-xs text-primary-ink">
+                <CheckCircle2 className="h-4 w-4 text-primary-ink shrink-0" />
                 <span>
                   Đã bóc tách <strong>{extractedCards.length}</strong> từ vựng trọng tâm. Bạn có thể chỉnh sửa trước khi lưu.
                 </span>
@@ -505,14 +505,14 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
               <button
                 type="button"
                 onClick={toggleSelectAll}
-                className="text-xs font-semibold text-brand-700 dark:text-brand-300 hover:underline"
+                className="text-xs font-semibold text-primary-ink hover:underline"
               >
                 {selectedIndices.length === extractedCards.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
               </button>
             </div>
 
             {extractedPreview && (
-              <p className="text-xs text-slate-400 italic line-clamp-2 px-1">
+              <p className="text-xs text-mute italic line-clamp-2 px-1">
                 Trích dẫn từ tài liệu: &ldquo;{extractedPreview}&rdquo;
               </p>
             )}
@@ -526,8 +526,8 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
                     key={idx}
                     className={`p-4 rounded-2xl border transition-all duration-200 ${
                       isSelected
-                        ? "border-brand-300 bg-brand-50/30 dark:border-brand-800 dark:bg-brand-950/20"
-                        : "border-slate-200 bg-slate-50/40 opacity-60 dark:border-slate-800 dark:bg-slate-900/40"
+                        ? "border-primary/25 bg-primary-soft"
+                        : "border-line bg-subtle/40 opacity-60"
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -536,8 +536,8 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
                         onClick={() => toggleSelectCard(idx)}
                         className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition-colors ${
                           isSelected
-                            ? "border-brand-600 bg-brand-600 text-white"
-                            : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                            ? "border-primary bg-primary text-white"
+                            : "border-line-strong bg-surface"
                         }`}
                       >
                         {isSelected && <Check className="h-3.5 w-3.5" />}
@@ -549,12 +549,12 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
                             type="text"
                             value={c.term}
                             onChange={(e) => handleUpdateCardField(idx, "term", e.target.value)}
-                            className="font-bold text-slate-900 dark:text-white bg-transparent text-base border-b border-transparent hover:border-slate-300 focus:border-brand-500 focus:outline-none"
+                            className="font-bold text-ink bg-transparent text-base border-b border-transparent hover:border-line-strong focus:border-primary focus:outline-none"
                           />
-                          <span className="text-xs text-slate-500 font-mono">
+                          <span className="text-xs text-mute">
                             {c.phonetic}
                           </span>
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-600 bg-brand-100 dark:bg-brand-950 dark:text-brand-300 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-semibold text-primary-ink bg-primary-soft px-2 py-0.5 rounded-full">
                             {c.partOfSpeech}
                           </span>
                         </div>
@@ -564,17 +564,17 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
                             type="text"
                             value={c.definition}
                             onChange={(e) => handleUpdateCardField(idx, "definition", e.target.value)}
-                            className="w-full text-xs font-medium text-slate-700 dark:text-slate-300 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-500 focus:outline-none"
+                            className="w-full text-xs font-medium text-ink-2 bg-transparent border-b border-transparent hover:border-line-strong focus:border-primary focus:outline-none"
                           />
                         </div>
 
                         {c.exampleSentence && (
-                          <div className="text-xs text-slate-500 dark:text-slate-400 bg-white/70 dark:bg-slate-800/70 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">
-                            <p className="font-medium text-slate-700 dark:text-slate-300">
+                          <div className="text-xs text-mute bg-white/70 p-2.5 rounded-xl border border-line">
+                            <p className="font-medium text-ink-2">
                               {c.exampleSentence}
                             </p>
                             {c.exampleTranslation && (
-                              <p className="text-[11px] text-slate-500 mt-0.5 italic">
+                              <p className="text-[11px] text-mute mt-0.5 italic">
                                 {c.exampleTranslation}
                               </p>
                             )}
@@ -588,11 +588,11 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between pt-4 border-t border-line">
               <button
                 type="button"
                 onClick={() => setStep("upload")}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-ink-2 hover:bg-subtle"
               >
                 Quay lại tải file khác
               </button>
@@ -601,7 +601,7 @@ export function DocumentUploadModal({ onClose, onSuccess }: DocumentUploadModalP
                 type="button"
                 onClick={handleSaveToDeck}
                 disabled={selectedIndices.length === 0}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors shadow-sm disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors shadow-sm disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" />
                 <span>

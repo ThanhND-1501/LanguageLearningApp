@@ -25,6 +25,9 @@ import {
   Cloud,
   AlertCircle,
 } from "lucide-react";
+import { buttonClass } from "@/components/ui/button";
+import { DeckCard } from "@/components/deck/DeckCard";
+import { getLocalCards as loadCards } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { syncAll } from "@/lib/sync";
 import {
@@ -52,6 +55,7 @@ export default function ProfilePage() {
   const [editLevel, setEditLevel] = useState<TargetProficiencyLevel>("IELTS 7.5+");
   const [editGoal, setEditGoal] = useState(15);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const allCards = typeof window !== "undefined" && user ? loadCards() : [];
 
   useEffect(() => {
     const applyUser = (u: UserProfile) => {
@@ -156,64 +160,42 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <RefreshCw className="h-6 w-6 animate-spin text-brand-600" />
+        <RefreshCw className="h-6 w-6 animate-spin text-primary-ink" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
-      {/* Profile Header Banner */}
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-brand-600 via-indigo-600 to-indigo-800 p-6 sm:p-8 text-white shadow-lg">
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="h-18 w-18 sm:h-20 sm:w-20 rounded-2xl bg-white/20 backdrop-blur border border-white/30 flex items-center justify-center text-white font-extrabold text-2xl sm:text-3xl shadow-inner">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{user.name}</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 backdrop-blur">
-                  {user.targetLevel}
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-indigo-100">{user.email}</p>
-              <div className="flex items-center gap-3 pt-1 text-xs text-indigo-200">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>Tham gia từ {new Date(user.createdAt).toLocaleDateString("vi-VN")}</span>
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1 font-semibold text-amber-300">
-                  <Flame className="h-3.5 w-3.5 fill-amber-300" />
-                  <span>Chuỗi {user.streakDays || 1} ngày học liên tục</span>
-                </span>
-              </div>
-            </div>
+    <div className="max-w-[1200px] mx-auto px-5 sm:px-8 py-8 sm:py-10 space-y-8">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-primary-soft text-2xl font-bold text-primary-ink">
+            {user.name.charAt(0).toUpperCase()}
           </div>
-
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold backdrop-blur transition-all"
-            >
-              <Settings className="h-4 w-4" />
-              <span>{isEditing ? "Đóng cài đặt" : "Tùy chỉnh mục tiêu"}</span>
-            </button>
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/10 hover:bg-rose-500/80 text-white text-xs font-semibold transition-colors"
-              title="Đăng xuất"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+          <div>
+            <h1 className="text-[26px] font-bold tracking-tight">{user.name}</h1>
+            <p className="mt-0.5 text-ink-2">{user.email}</p>
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-mute">
+              <span>Mục tiêu {user.targetLevel}</span>
+              <span>Tham gia {new Date(user.createdAt).toLocaleDateString("vi-VN")}</span>
+              <span>Chuỗi {user.streakDays || 1} ngày</span>
+            </p>
           </div>
         </div>
-      </div>
+        <div className="flex gap-2.5">
+          <button type="button" onClick={() => setIsEditing(!isEditing)} className={buttonClass("secondary", "md")}>
+            <Settings className="h-4 w-4" />
+            {isEditing ? "Đóng cài đặt" : "Đổi mục tiêu"}
+          </button>
+          <button type="button" onClick={handleLogout} className={buttonClass("danger", "md")}>
+            <LogOut className="h-4 w-4" />
+            Đăng xuất
+          </button>
+        </div>
+      </header>
 
       {saveSuccess && (
-        <div className="flex items-center gap-2 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+        <div className="flex items-center gap-2 p-3.5 rounded-2xl bg-good-soft border border-good/25 text-good text-xs font-medium">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>Cập nhật thông tin cá nhân và mục tiêu học tập thành công!</span>
         </div>
@@ -221,13 +203,13 @@ export default function ProfilePage() {
 
       {/* Edit Goal / Profile Inline Drawer */}
       {isEditing && (
-        <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm animate-in fade-in duration-200">
-          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4">
+        <div className="p-6 rounded-2xl border border-line bg-surface shadow-sm animate-in fade-in duration-200">
+          <h3 className="text-base font-bold text-ink mb-4">
             Cài đặt mục tiêu học tập cá nhân
           </h3>
           <form onSubmit={handleSaveProfile} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+              <label className="text-xs font-semibold text-ink-2">
                 Tên hiển thị:
               </label>
               <input
@@ -235,18 +217,18 @@ export default function ProfilePage() {
                 required
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+              <label className="text-xs font-semibold text-ink-2">
                 Mục tiêu trình độ:
               </label>
               <select
                 value={editLevel}
                 onChange={(e) => setEditLevel(e.target.value as TargetProficiencyLevel)}
-                className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
               >
                 <option value="IELTS 6.5">IELTS 6.5 (B2 Upper-Intermediate)</option>
                 <option value="IELTS 7.5+">IELTS 7.5+ (C1 Advanced Mastery)</option>
@@ -257,7 +239,7 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+              <label className="text-xs font-semibold text-ink-2">
                 Số từ mục tiêu ôn mỗi ngày:
               </label>
               <input
@@ -266,7 +248,7 @@ export default function ProfilePage() {
                 max={100}
                 value={editGoal}
                 onChange={(e) => setEditGoal(Number(e.target.value))}
-                className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
 
@@ -274,13 +256,13 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-400"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-ink-2 hover:bg-subtle"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-brand-600 text-white text-xs font-bold hover:bg-brand-700"
+                className="px-5 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-hover"
               >
                 Lưu thay đổi
               </button>
@@ -289,221 +271,87 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Personalized Vocabulary Stats Grid */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
+      {/* Vocabulary figures */}
+      <section aria-labelledby="vocab-title">
+        <div className="mb-3.5 flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              Kho từ vựng cá nhân hóa (Personalized Vocabulary Insights)
-            </h2>
-            <p className="text-xs text-slate-500">
-              Phân loại theo thuật toán lặp lại ngắt quãng Spaced Repetition SM-2
-            </p>
+            <h2 id="vocab-title" className="text-lg font-bold tracking-tight">Từ vựng của bạn</h2>
+            <p className="text-sm text-mute">Theo trạng thái ghi nhớ của từng thẻ.</p>
           </div>
-          <button
-            onClick={handleExportVocabulary}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span>Xuất kho từ (.json)</span>
+          <button type="button" onClick={handleExportVocabulary} className={buttonClass("secondary", "sm")}>
+            <Download className="h-4 w-4" />
+            Xuất từ vựng (JSON)
           </button>
         </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">Tổng từ vựng</span>
-              <BookOpen className="h-4 w-4 text-brand-600" />
+        <dl className="grid grid-cols-2 divide-line overflow-hidden rounded-card border border-line bg-surface sm:grid-cols-3 lg:grid-cols-6 [&>div]:border-line [&>div]:px-5 [&>div]:py-4 max-lg:[&>div]:border-b lg:divide-x">
+          {([
+            ["Tổng số từ", stats?.totalWords ?? 0, null],
+            ["Đã thuộc", stats?.masteredWords ?? 0, "bg-primary"],
+            ["Đang học", stats?.learningWords ?? 0, "bg-primary/45"],
+            ["Mới", stats?.newWords ?? 0, "bg-line-strong"],
+            ["Tỷ lệ ghi nhớ", `${stats?.retentionRate ?? 0}%`, null],
+            ["Phát âm trung bình", stats && stats.avgPronScore > 0 ? `${stats.avgPronScore}/100` : "Chưa có", null],
+          ] as const).map(([label, value, dot]) => (
+            <div key={label}>
+              <dt className="flex items-center gap-1.5 text-[13px] text-mute">
+                {dot && <i className={cn("h-2 w-2 rounded-full", dot)} aria-hidden="true" />}
+                {label}
+              </dt>
+              <dd className="mt-1 text-2xl font-bold tracking-tight">{value}</dd>
             </div>
-            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-2">
-              {stats?.totalWords || 0}
-            </p>
-            <span className="text-[11px] text-slate-400">Đã lưu trong kho cá nhân</span>
-          </div>
+          ))}
+        </dl>
+        <p className="mt-2.5 text-[13px] text-mute">
+          Tỷ lệ ghi nhớ tính từ số thẻ đã thuộc và đang học. Điểm phát âm là trung bình
+          {stats?.totalSpeakingAttempts ? ` của ${stats.totalSpeakingAttempts} lần luyện nói` : " các lần luyện nói"}.
+        </p>
+      </section>
 
-          <div className="p-5 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-950/20">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                Thành thạo (Mastered)
-              </span>
-              <Award className="h-4 w-4 text-emerald-600" />
-            </div>
-            <p className="text-2xl sm:text-3xl font-extrabold text-emerald-800 dark:text-emerald-300 mt-2">
-              {stats?.masteredWords || 0}
-            </p>
-            <span className="text-[11px] text-emerald-600/80">Interval $\ge$ 21 ngày</span>
-          </div>
-
-          <div className="p-5 rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                Đang củng cố (Learning)
-              </span>
-              <Brain className="h-4 w-4 text-amber-600" />
-            </div>
-            <p className="text-2xl sm:text-3xl font-extrabold text-amber-800 dark:text-amber-300 mt-2">
-              {stats?.learningWords || 0}
-            </p>
-            <span className="text-[11px] text-amber-600/80">Đang trong chu kỳ lặp lại</span>
-          </div>
-
-          <div className="p-5 rounded-2xl border border-indigo-200 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/20">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400">
-                Từ mới (New)
-              </span>
-              <Sparkles className="h-4 w-4 text-indigo-600" />
-            </div>
-            <p className="text-2xl sm:text-3xl font-extrabold text-indigo-800 dark:text-indigo-300 mt-2">
-              {stats?.newWords || 0}
-            </p>
-            <span className="text-[11px] text-indigo-600/80">Sẵn sàng học bài đầu tiên</span>
-          </div>
+      {/* Decks */}
+      <section aria-labelledby="decks-title">
+        <div className="mb-3.5 flex items-baseline justify-between">
+          <h2 id="decks-title" className="text-lg font-bold tracking-tight">Bộ từ đang học</h2>
+          <Link href="/decks" className="text-sm font-semibold text-primary-ink hover:underline">Xem thư viện</Link>
         </div>
-      </div>
-
-      {/* Retention Rate & PronScore Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-brand-600" />
-              <span className="text-sm font-bold text-slate-900 dark:text-white">
-                Tỷ lệ ghi nhớ dài hạn (Retention Index)
-              </span>
-            </div>
-            <span className="text-sm font-extrabold text-brand-600">
-              {stats?.retentionRate || 85}%
-            </span>
-          </div>
-          <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-            <div
-              className="bg-brand-600 h-full rounded-full transition-all duration-500"
-              style={{ width: `${stats?.retentionRate || 85}%` }}
-            />
-          </div>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Dựa trên tần suất ôn tập lặp lại ngắt quãng SM-2 và số lần bấm `Good` / `Easy` liên tiếp.
-          </p>
-        </div>
-
-        <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Mic className="h-4 w-4 text-brand-600" />
-              <span className="text-sm font-bold text-slate-900 dark:text-white">
-                Điểm phát âm trung bình (PronScore)
-              </span>
-            </div>
-            <span className="text-sm font-extrabold text-emerald-600">
-              {stats?.avgPronScore || 82} / 100
-            </span>
-          </div>
-          <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-            <div
-              className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-              style={{ width: `${stats?.avgPronScore || 82}%` }}
-            />
-          </div>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Đánh giá trên 4 tiêu chí Azure AI: Độ chuẩn âm (Accuracy), Độ trôi chảy (Fluency), Độ hoàn thiện (Completeness) và Ngữ điệu (Prosody).
-          </p>
-        </div>
-      </div>
-
-      {/* Enrolled Decks Section */}
-      <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-              Các bộ từ vựng đã đăng ký ({enrolledDecks.length})
-            </h3>
-            <p className="text-xs text-slate-500">
-              Các bộ từ vựng bạn đang theo dõi và học theo lộ trình cá nhân
-            </p>
-          </div>
-          <Link
-            href="/decks"
-            className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
-          >
-            <span>Khám phá thêm</span>
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-
         {enrolledDecks.length === 0 ? (
-          <div className="py-8 text-center text-slate-400 text-xs">
-            Bạn chưa đăng ký bộ từ vựng nào. Hãy vào Kho từ vựng để chọn bộ từ bắt đầu học!
-          </div>
+          <p className="rounded-card border border-dashed border-line-strong px-5 py-8 text-center text-ink-2">
+            Bạn chưa có bộ từ nào.{" "}
+            <Link href="/decks" className="font-semibold text-primary-ink hover:underline">Chọn bộ từ trong thư viện</Link>
+          </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {enrolledDecks.map((deck) => (
-              <div
-                key={deck.id}
-                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    {deck.tags.slice(0, 2).map((t) => (
-                      <span
-                        key={t}
-                        className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">
-                    {deck.title}
-                  </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
-                    {deck.description}
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                  <span className="text-xs text-slate-400">
-                    {deck.totalCards || 0} thẻ chuẩn
-                  </span>
-                  <Link
-                    href={`/study/${deck.id}`}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 transition-colors shadow-xs"
-                  >
-                    <span>Học ngay</span>
-                    <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </div>
-              </div>
+              <DeckCard key={deck.id} deck={deck} cards={allCards.filter((c) => c.deckId === deck.id)} isEnrolled isLoggedIn />
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {/* Cloud Sync & Backup Section */}
-      <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-xs">
+      <div className="p-6 sm:p-8 rounded-2xl border border-line bg-surface space-y-4 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-brand-600 dark:bg-indigo-950 dark:text-brand-300 flex items-center justify-center shrink-0 mt-0.5">
+            <div className="h-10 w-10 rounded-2xl bg-primary-soft text-primary-ink flex items-center justify-center shrink-0 mt-0.5">
               <Cloud className="h-5 w-5" />
             </div>
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Lưu trữ đám mây & Tự động đồng bộ
+                <h3 className="text-base font-bold text-ink">
+                  Lưu trữ và đồng bộ
                 </h3>
                 {isSupabaseConfigured() ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Supabase Cloud Connected
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-good-soft text-good border border-good/25">
+                    <span className="h-2 w-2 rounded-full bg-good animate-pulse" />
+                    Đã kết nối đám mây
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                    Lưu trữ cục bộ Local-First (0ms)
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-subtle text-ink-2 border border-line">
+                    Chỉ lưu trên máy này
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
-                Hệ thống tự động sao lưu nền (Background Auto-sync) tức thì mọi tiến độ lật thẻ SRS, bài luyện phát âm PronScore™ và bộ từ vựng cá nhân mà không cần thao tác thủ công.
+              <p className="text-xs text-mute max-w-2xl leading-relaxed">
+                Tiến độ ôn, bài luyện nói và bộ từ của bạn luôn được lưu trên máy này. Khi đã kết nối đám mây, bạn có thể đồng bộ để dùng trên thiết bị khác, hoặc xuất bản sao lưu dạng JSON bất cứ lúc nào.
               </p>
             </div>
           </div>
@@ -512,14 +360,14 @@ export default function ProfilePage() {
             <button
               onClick={handleManualSync}
               disabled={isSyncing}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-subtle hover:bg-line text-ink-2 text-xs font-semibold transition-all disabled:opacity-60"
             >
-              <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin text-brand-600")} />
+              <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin text-primary-ink")} />
               <span>{isSyncing ? "Đang đồng bộ..." : "Đồng bộ thủ công"}</span>
             </button>
             <button
               onClick={handleExportVocabulary}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-line hover:bg-subtle text-xs font-semibold text-ink-2 transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Xuất sao lưu (.json)</span>
@@ -532,14 +380,14 @@ export default function ProfilePage() {
             className={cn(
               "flex items-center gap-2 p-3 rounded-xl text-xs font-medium border animate-in fade-in duration-200",
               syncResult.success
-                ? "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-                : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+                ? "bg-good-soft text-good border-good/25"
+                : "bg-fair-soft text-fair border-fair/25"
             )}
           >
             {syncResult.success ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-good" />
             ) : (
-              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+              <AlertCircle className="h-4 w-4 shrink-0 text-fair" />
             )}
             <span>{syncResult.message}</span>
           </div>
@@ -547,19 +395,19 @@ export default function ProfilePage() {
       </div>
 
       {/* Activity History Timeline */}
-      <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5">
+      <div className="p-6 sm:p-8 rounded-2xl border border-line bg-surface space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-              Lịch sử hoạt động & tiến độ học tập gần đây
+            <h3 className="text-lg font-bold text-ink">
+              Hoạt động gần đây
             </h3>
-            <p className="text-xs text-slate-500">
-              Nhật ký tra từ, luyện nói, lật thẻ flashcard và tương tác với AI
+            <p className="text-xs text-mute">
+              Ôn thẻ, tra từ, luyện nói và hội thoại
             </p>
           </div>
           <Link
             href="/decks"
-            className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+            className="text-xs font-semibold text-primary-ink hover:text-primary-ink flex items-center gap-1"
           >
             <span>Đến bộ từ vựng</span>
             <ChevronRight className="h-3.5 w-3.5" />
@@ -567,7 +415,7 @@ export default function ProfilePage() {
         </div>
 
         {activities.length === 0 ? (
-          <div className="py-8 text-center text-slate-400 text-xs">
+          <div className="py-8 text-center text-mute text-xs">
             Chưa có hoạt động nào được ghi nhận. Hãy bắt đầu ôn tập hoặc tra từ mới!
           </div>
         ) : (
@@ -575,9 +423,9 @@ export default function ProfilePage() {
             {activities.map((act) => (
               <div
                 key={act.id}
-                className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 transition-colors"
+                className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-subtle border border-line transition-colors"
               >
-                <div className="h-8 w-8 rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-300 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="h-8 w-8 rounded-xl bg-primary-soft text-primary-ink flex items-center justify-center shrink-0 mt-0.5">
                   {act.type === "speech_practice" ? (
                     <Mic className="h-4 w-4" />
                   ) : act.type === "cambridge_lookup" ? (
@@ -590,21 +438,21 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                    <p className="text-sm font-bold text-ink truncate">
                       {act.title}
                     </p>
-                    <span className="text-[11px] text-slate-400 shrink-0">
+                    <span className="text-[11px] text-mute shrink-0">
                       {new Date(act.timestamp).toLocaleTimeString("vi-VN", {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                  <p className="text-xs text-ink-2 mt-0.5">
                     {act.description}
                   </p>
                   {act.metadata?.score && (
-                    <span className="mt-1.5 inline-block text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                    <span className="mt-1.5 inline-block text-[11px] font-bold px-2 py-0.5 rounded-md bg-good-soft text-good">
                       PronScore: {act.metadata.score}/100
                     </span>
                   )}
