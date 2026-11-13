@@ -1,0 +1,21 @@
+name: Main Branch Gatekeeper
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check-source-branch:
+    name: Enforce merge from dev only
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify source branch is dev
+        run: |
+          echo "Target base branch: ${{ github.base_ref }}"
+          echo "Source head branch: ${{ github.head_ref }}"
+          if [ "${{ github.head_ref }}" != "dev" ]; then
+            echo "::error::Only Pull Requests originating from the 'dev' branch can be merged into 'main'! Current source branch is '${{ github.head_ref }}'."
+            exit 1
+          fi
+          echo "Verification passed: Source branch is 'dev'. Ready for review."
