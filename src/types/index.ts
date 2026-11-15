@@ -114,6 +114,8 @@ export interface RoleplayScenario {
   aiPersona: string;
   initialMessage: string;
   targetWords: string[];
+  isCustom?: boolean;
+  createdAt?: string;
 }
 
 export interface ConversationSession {
