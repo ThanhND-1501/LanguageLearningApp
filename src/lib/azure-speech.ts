@@ -108,8 +108,9 @@ Return STRICT JSON only without any markdown formatting or code blocks:
   ]
 }`;
 
+    const geminiModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
