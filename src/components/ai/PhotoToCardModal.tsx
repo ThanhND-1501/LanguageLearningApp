@@ -109,7 +109,7 @@ export function PhotoToCardModal({ deckId, onAddCards, onClose }: PhotoToCardMod
                 Tạo Flashcard thông minh bằng AI
               </h3>
               <p className="text-xs text-mute">
-                Google Gemini Multimodal Vision & Language Engine
+                Hệ thống Trí tuệ nhân tạo (Multimodal AI Vision & Language Engine)
               </p>
             </div>
           </div>

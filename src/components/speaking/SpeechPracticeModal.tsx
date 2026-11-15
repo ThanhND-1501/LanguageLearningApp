@@ -131,7 +131,7 @@ export function SpeechPracticeModal({ card, onClose }: SpeechPracticeModalProps)
           ? card.exampleSentence || card.term
           : userTranscript.trim() || card.exampleSentence || card.term;
 
-      // Chấm điểm phát âm PronScore (Gemini Multimodal Audio / Groq Whisper / Azure)
+      // Chấm điểm phát âm PronScore (AI Audio / AI Cloud Speech)
       const formData = new FormData();
       formData.append("audio", audioBlob, "recording.webm");
       formData.append("referenceText", referenceToAssess);

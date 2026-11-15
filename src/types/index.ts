@@ -60,7 +60,7 @@ export interface DeckCardRelation {
 }
 
 // ------------------------------------------------------------------------------
-// PronScore Engine (Azure AI Speech Assessment Data Structures)
+// PronScore Engine (AI Speech Assessment Data Structures)
 // ------------------------------------------------------------------------------
 export interface WordScore {
   word: string;

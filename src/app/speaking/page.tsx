@@ -207,7 +207,7 @@ export default function SpeakingStudioPage() {
           ? selectedCard.exampleSentence || selectedCard.term
           : userSentence.trim() || selectedCard.exampleSentence || selectedCard.term;
 
-      // Chấm điểm phát âm PronScore (Gemini Multimodal Audio / Groq Whisper / Azure)
+      // Chấm điểm phát âm PronScore (AI Audio / AI Speech Engine)
       const formData = new FormData();
       formData.append("audio", audioBlob, "recording.webm");
       formData.append("referenceText", referenceToAssess);
@@ -279,8 +279,8 @@ export default function SpeakingStudioPage() {
               />
               <span>
                 {engineStatus.online
-                  ? "OpenPronounce: Sẵn sàng (Local AI)"
-                  : "OpenPronounce: Offline"}
+                  ? "AI Chấm âm: Sẵn sàng (Local AI)"
+                  : "AI Chấm âm: Ngoại tuyến"}
               </span>
             </div>
           )}

@@ -1,7 +1,7 @@
 import { describe, it, assert } from "./test-helper";
 import { simulatePronAssessment } from "../src/lib/azure-speech";
 
-describe("Azure Speech Assessment & Simulator (azure-speech.ts)", () => {
+describe("AI Speech Assessment & Simulator (PronScore)", () => {
   it("should generate comprehensive scores within 0-100 bounds", () => {
     const reference = "Children are remarkably resilient to changes.";
     const transcript = "Children are remarkably resilient to changes.";

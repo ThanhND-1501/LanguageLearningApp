@@ -2,10 +2,10 @@ import { describe, it, assert } from "./test-helper";
 import { generateCustomRoleplayScenario } from "../src/lib/gemini";
 import { POST } from "../src/app/api/ai/scenario/route";
 
-describe("Custom Roleplay Scenario Engine (gemini.ts)", () => {
+describe("Custom Roleplay Scenario Engine (AI Pipeline)", () => {
   const originalFetch = globalThis.fetch;
 
-  it("should generate a valid custom scenario using Gemini API when available", async () => {
+  it("should generate a valid custom scenario using AI API when available", async () => {
     const prevKey = process.env.GEMINI_API_KEY;
     process.env.GEMINI_API_KEY = "test_gemini_key_123456789";
     const mockGeminiResponse = {

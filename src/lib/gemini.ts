@@ -1,5 +1,5 @@
 // ==============================================================================
-// Google Gemini AI Pipeline (Multimodal Vision OCR, Topic Expansion, Grammar & Roleplay)
+// AI Language & Vision Pipeline (Multimodal Vision OCR, Topic Expansion, Grammar & Roleplay)
 // ==============================================================================
 
 import { GeneratedCardItem, GrammarEvaluationResult, RoleplayScenario } from "@/types";
@@ -8,7 +8,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 /**
- * Generate flashcards from Topic or Image using Gemini 3.8 Flash / Gemini models
+ * Generate flashcards from Topic or Image using AI models
  */
 export async function generateFlashcardsWithAI(params: {
   topic?: string;
@@ -59,7 +59,7 @@ Yêu cầu định dạng: Trả về duy nhất một mảng JSON thuần túy 
     parts.push({ text: prompt });
     contents.push({ parts });
 
-    // Call Gemini REST API directly
+    // Call Cloud AI REST API directly
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -76,7 +76,7 @@ Yêu cầu định dạng: Trả về duy nhất một mảng JSON thuần túy 
     );
 
     if (!response.ok) {
-      throw new Error(`Gemini API responded with status ${response.status}`);
+      throw new Error(`AI Service API responded with status ${response.status}`);
     }
 
     const data = await response.json();
@@ -85,7 +85,7 @@ Yêu cầu định dạng: Trả về duy nhất một mảng JSON thuần túy 
       return JSON.parse(textOutput);
     }
   } catch (error) {
-    console.error("Gemini Generation Error:", error);
+    console.error("AI Generation Error:", error);
   }
 
   return getFallbackGeneratedCards(topic);
@@ -162,7 +162,7 @@ Trả về DUY NHẤT một JSON format:
       }
     }
   } catch (err) {
-    console.error("Gemini Grammar Evaluation Error:", err);
+    console.error("AI Grammar Evaluation Error:", err);
   }
 
   return {
@@ -177,7 +177,7 @@ Trả về DUY NHẤT một JSON format:
 
 /**
  * Generates an authentic, context-aware conversational response for AI Roleplay
- * Powered by Google Gemini 2.5 Flash with Groq Llama 3.3 failover
+ * Powered by AI Language Models with multi-tier failover
  */
 export async function generateRoleplayReply(params: {
   scenarioTitle: string;
@@ -190,7 +190,7 @@ export async function generateRoleplayReply(params: {
   const { scenarioTitle, aiPersona, targetWords, usedWords, history, userMessage } = params;
   const remainingWords = targetWords.filter((w) => !usedWords.includes(w));
 
-  // 1. Try Google Gemini 2.5 Flash
+  // 1. Try Primary AI Provider
   if (GEMINI_API_KEY && !GEMINI_API_KEY.includes("your_gemini_api_key_here") && GEMINI_API_KEY.length > 10) {
     try {
       const prompt = `You are roleplaying as "${aiPersona}" in an interactive English learning scenario: "${scenarioTitle}".
@@ -235,11 +235,11 @@ Respond ONLY with your spoken dialogue in English. No markdown, no prefixes, no 
         }
       }
     } catch (err) {
-      console.warn("Gemini Roleplay API error, trying Groq fallback:", err);
+      console.warn("Primary AI Roleplay error, trying fallback AI:", err);
     }
   }
 
-  // 2. Try Groq Llama 3.3
+  // 2. Try Secondary AI Provider
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey && !groqKey.includes("your_groq_api_key_here") && groqKey.startsWith("gsk_")) {
     try {
@@ -275,7 +275,7 @@ Respond ONLY with your spoken dialogue in English. No markdown, no prefixes, no 
         }
       }
     } catch (err) {
-      console.warn("Groq Roleplay API error:", err);
+      console.warn("Secondary AI Roleplay error:", err);
     }
   }
 
@@ -286,7 +286,7 @@ Respond ONLY with your spoken dialogue in English. No markdown, no prefixes, no 
 
 /**
  * Generates a customized AI Roleplay scenario based on user prompt/instructions
- * Uses Google Gemini 3.8 Flash with Groq Llama 3.3 failover and graceful template fallback
+ * Uses AI Language Models with failover and graceful template fallback
  */
 export async function generateCustomRoleplayScenario(params: {
   instruction: string;
@@ -303,7 +303,7 @@ export async function generateCustomRoleplayScenario(params: {
   const apiKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || GEMINI_MODEL;
 
-  // 1. Try Google Gemini API
+  // 1. Try Primary Cloud AI API
   if (apiKey && !apiKey.includes("your_gemini_api_key_here") && apiKey.length > 10) {
     try {
       const prompt = `Bạn là một chuyên gia ngôn ngữ học và thiết kế giáo trình đàm thoại tiếng Anh ứng dụng thực tế.
@@ -369,11 +369,11 @@ Trả về DUY NHẤT một đối tượng JSON hợp lệ (không chứa markd
         }
       }
     } catch (err) {
-      console.warn("Gemini Custom Scenario Generation Error, trying Groq fallback:", err);
+      console.warn("Primary AI Custom Scenario Generation Error, trying fallback AI:", err);
     }
   }
 
-  // 2. Try Groq Llama 3.3 Failover
+  // 2. Try Secondary AI Provider Failover
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey && !groqKey.includes("your_groq_api_key_here") && groqKey.startsWith("gsk_")) {
     try {
@@ -431,7 +431,7 @@ Return ONLY valid JSON matching this schema:
         }
       }
     } catch (err) {
-      console.warn("Groq Custom Scenario Generation Error:", err);
+      console.warn("Secondary AI Custom Scenario Generation Error:", err);
     }
   }
 

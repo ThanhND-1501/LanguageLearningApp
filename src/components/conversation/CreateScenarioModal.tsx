@@ -117,7 +117,7 @@ export function CreateScenarioModal({ isOpen, onClose, onScenarioCreated }: Crea
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-ink">Tạo kịch bản với Gemini AI</h2>
+              <h2 className="text-lg font-bold text-ink">Tạo kịch bản với Trợ lý AI</h2>
               <p className="text-xs text-ink-2">
                 Nhập tình huống bạn muốn thực hành, AI sẽ tự động đóng vai và tạo mục tiêu giao tiếp.
               </p>
@@ -210,7 +210,7 @@ export function CreateScenarioModal({ isOpen, onClose, onScenarioCreated }: Crea
               className="w-full rounded-xl border border-line px-3.5 py-2 text-sm focus:border-primary focus:outline-none bg-surface text-ink"
             />
             <p className="text-[11px] text-mute">
-              Nếu để trống, Gemini sẽ tự động phân tích bối cảnh và chọn 3-5 từ vựng/thành ngữ đắt giá nhất.
+              Nếu để trống, AI sẽ tự động phân tích bối cảnh và chọn 3-5 từ vựng/thành ngữ đắt giá nhất.
             </p>
           </div>
 
@@ -239,7 +239,7 @@ export function CreateScenarioModal({ isOpen, onClose, onScenarioCreated }: Crea
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Gemini đang tạo...</span>
+                  <span>AI đang thiết kế...</span>
                 </>
               ) : (
                 <>

@@ -143,7 +143,7 @@ export default function ConversationPage() {
     setIsTyping(true);
 
     try {
-      // 1. Call real AI Roleplay Conversation API (Gemini 2.5 Flash with Groq failover)
+      // 1. Call real AI Roleplay Conversation API (AI Engine with failover)
       const convoRes = await fetch("/api/ai/conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

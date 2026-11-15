@@ -1,7 +1,7 @@
 // ==============================================================================
 // Document-to-Flashcards Extraction Engine
 // Supports Images (PNG, JPG, WEBP), Documents (PDF, DOCX), and Plaintext (TXT, MD)
-// Uses Google Gemini 2.5 Flash Vision & Text AI with Mammoth DOCX Parser & Fallback NLP
+// Uses Multimodal AI Vision & Text Engine with Mammoth DOCX Parser & Fallback NLP
 // ==============================================================================
 
 import { GeneratedCardItem, DocumentExtractResult } from "@/types";
@@ -54,13 +54,13 @@ export async function extractTextFromDocumentBuffer(
     return { text: buffer.toString("utf-8").trim(), isTextual: true };
   }
 
-  // Non-textual formats (Images, PDF handled via multimodal Gemini)
+  // Non-textual formats (Images, PDF handled via multimodal AI)
   return { text: "", isTextual: false };
 }
 
 /**
  * Intelligent Fallback NLP Vocabulary Extractor
- * Used when Gemini API is offline or API key is unconfigured
+ * Used when AI API is offline or API key is unconfigured
  */
 function extractFallbackVocabulary(
   text: string,
@@ -243,7 +243,7 @@ export async function extractVocabularyFromDocument(
     fileName
   );
 
-  // 2. Multimodal or Textual Gemini Calling
+  // 2. Multimodal or Textual AI Calling
   if (GEMINI_API_KEY) {
     try {
       const contents: any[] = [];
@@ -340,10 +340,10 @@ Yêu cầu định dạng: Trả về duy nhất một mảng JSON thuần túy 
           }
         }
       } else {
-        console.warn(`Gemini Document API returned status ${response.status}`);
+        console.warn(`AI Document API returned status ${response.status}`);
       }
     } catch (err) {
-      console.error("Gemini Document Extraction error:", err);
+      console.error("AI Document Extraction error:", err);
     }
   }
 
