@@ -526,20 +526,20 @@ export function getLocalCards(userId?: string, deckId?: string): Card[] {
     );
   }
 
-  // If Demo / Guest user or called without explicit userId filter, return all cards
-  if (!userId || currentUserId === "user-demo-linguist") {
-    return allCards;
+  // If user context exists (explicit userId or active user)
+  if (currentUserId) {
+    const userDecks = getLocalDecks(currentUserId);
+    const userDeckIds = new Set(userDecks.map((d) => d.id));
+
+    return allCards.filter(
+      (c) =>
+        userDeckIds.has(c.deckId) ||
+        (Array.isArray(c.deckIds) && c.deckIds.some((id) => userDeckIds.has(id)))
+    );
   }
 
-  // If Registered User with explicit userId filter (e.g. for user personal stats)
-  const userDecks = getLocalDecks(currentUserId);
-  const userDeckIds = new Set(userDecks.map((d) => d.id));
-
-  return allCards.filter(
-    (c) =>
-      userDeckIds.has(c.deckId) ||
-      (Array.isArray(c.deckIds) && c.deckIds.some((id) => userDeckIds.has(id)))
-  );
+  // If no user context at all (e.g. unauthenticated global catalog exploration)
+  return allCards;
 }
 
 export function saveLocalCards(cards: Card[]): void {

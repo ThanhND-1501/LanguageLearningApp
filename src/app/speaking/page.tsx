@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Card, PronScoreResult, UserProfile } from "@/types";
-import { getLocalCards } from "@/lib/storage";
-import { getActiveUser } from "@/lib/auth";
+import Link from "next/link";
+import { Card, Deck, PronScoreResult, UserProfile } from "@/types";
+import { getLocalCards, getLocalDecks } from "@/lib/storage";
+import { getActiveUser, syncSupabaseSessionToLocalUser } from "@/lib/auth";
+import { isSupabaseConfigured, getSessionUser } from "@/lib/supabase";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import {
   BrowserAudioRecorder,
@@ -50,6 +52,8 @@ export default function SpeakingStudioPage() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
+  const [userDecks, setUserDecks] = useState<Deck[]>([]);
+  const [selectedDeckId, setSelectedDeckId] = useState<string>("all");
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
@@ -69,10 +73,47 @@ export default function SpeakingStudioPage() {
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [engineStatus, setEngineStatus] = useState<{ online: boolean; message: string } | null>(null);
 
+  const loadUserContent = (u: UserProfile | null, deckFilter: string = "all") => {
+    if (!u) {
+      const all = getLocalCards();
+      setCards(all);
+      if (all.length > 0) setSelectedCard(all[0]);
+      return;
+    }
+    const decks = getLocalDecks(u.id);
+    setUserDecks(decks);
+
+    const filteredCards = deckFilter === "all" ? getLocalCards(u.id) : getLocalCards(u.id, deckFilter);
+    setCards(filteredCards);
+    if (filteredCards.length > 0) {
+      setSelectedCard(filteredCards[0]);
+    } else {
+      setSelectedCard(null);
+    }
+  };
+
   useEffect(() => {
     const user = getActiveUser();
     setCurrentUser(user);
+    loadUserContent(user, selectedDeckId);
+
+    if (isSupabaseConfigured()) {
+      getSessionUser().then((sbUser) => {
+        if (sbUser && sbUser.email) {
+          const synced = syncSupabaseSessionToLocalUser(sbUser);
+          setCurrentUser(synced);
+          loadUserContent(synced, selectedDeckId);
+        }
+      });
+    }
+
     setIsAuthChecking(false);
+
+    return () => {
+      if (volumeTeardownRef.current) {
+        volumeTeardownRef.current();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -82,19 +123,13 @@ export default function SpeakingStudioPage() {
       .catch(() => setEngineStatus({ online: false, message: "Không thể kết nối API" }));
   }, []);
 
-  useEffect(() => {
-    const allCards = getLocalCards();
-    setCards(allCards);
-    if (allCards.length > 0) {
-      setSelectedCard(allCards[0]);
-    }
-
-    return () => {
-      if (volumeTeardownRef.current) {
-        volumeTeardownRef.current();
-      }
-    };
-  }, []);
+  const handleDeckFilterChange = (deckId: string) => {
+    setSelectedDeckId(deckId);
+    loadUserContent(currentUser, deckId);
+    setScores(null);
+    setUserSentence("");
+    setSilenceWarning(null);
+  };
 
   useEffect(() => {
     return () => {
@@ -264,6 +299,25 @@ export default function SpeakingStudioPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Target Word Queue Selector */}
         <div className="lg:col-span-4 self-start overflow-hidden rounded-2xl border border-line bg-surface px-5 pt-4 space-y-3">
+          {userDecks.length > 1 && (
+            <div className="pb-1">
+              <label htmlFor="deck-filter" className="sr-only">Lọc theo bộ từ</label>
+              <select
+                id="deck-filter"
+                value={selectedDeckId}
+                onChange={(e) => handleDeckFilterChange(e.target.value)}
+                className="w-full text-xs font-semibold rounded-xl bg-subtle border border-line px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+              >
+                <option value="all">Tất cả bộ từ ({userDecks.reduce((sum, d) => sum + (d.totalCards || 0), 0)} từ)</option>
+                {userDecks.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.title} ({d.totalCards || 0} từ)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-mute">
               Chọn từ để luyện
@@ -271,29 +325,43 @@ export default function SpeakingStudioPage() {
             <span className="text-xs text-primary-ink font-semibold">{cards.length} từ</span>
           </div>
 
-          <ul className="-mx-5 max-h-[500px] divide-y divide-line overflow-y-auto border-t border-line">
-            {cards.map((card) => {
-              const isSelected = selectedCard?.id === card.id;
-              return (
-                <li key={card.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectCard(card)}
-                    aria-current={isSelected ? "true" : undefined}
-                    className={`block w-full px-5 py-3 text-left transition-colors ${
-                      isSelected ? "bg-primary-soft" : "hover:bg-subtle"
-                    }`}
-                  >
-                    <span className="flex items-baseline justify-between gap-3">
-                      <strong className={`text-sm font-semibold ${isSelected ? "text-primary-ink" : "text-ink"}`}>{card.term}</strong>
-                      <span className="text-xs text-mute">{card.phonetic}</span>
-                    </span>
-                    <span className="mt-0.5 block truncate text-xs text-mute">{card.definition}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          {cards.length === 0 ? (
+            <div className="py-8 px-4 text-center">
+              <p className="text-xs text-mute leading-relaxed">
+                Bạn chưa có từ vựng nào trong danh sách luyện nói.
+              </p>
+              <Link
+                href="/decks"
+                className="mt-3 inline-block rounded-xl bg-primary-soft px-3.5 py-1.5 text-xs font-semibold text-primary-ink hover:bg-primary-soft-hover"
+              >
+                Khám phá Thư viện bộ từ
+              </Link>
+            </div>
+          ) : (
+            <ul className="-mx-5 max-h-[500px] divide-y divide-line overflow-y-auto border-t border-line">
+              {cards.map((card) => {
+                const isSelected = selectedCard?.id === card.id;
+                return (
+                  <li key={card.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCard(card)}
+                      aria-current={isSelected ? "true" : undefined}
+                      className={`block w-full px-5 py-3 text-left transition-colors ${
+                        isSelected ? "bg-primary-soft" : "hover:bg-subtle"
+                      }`}
+                    >
+                      <span className="flex items-baseline justify-between gap-3">
+                        <strong className={`text-sm font-semibold ${isSelected ? "text-primary-ink" : "text-ink"}`}>{card.term}</strong>
+                        <span className="text-xs text-mute">{card.phonetic}</span>
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-mute">{card.definition}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
         {/* Right Column: Speaking Prompt & Recording Arena */}
@@ -557,8 +625,21 @@ export default function SpeakingStudioPage() {
               )}
             </div>
           ) : (
-            <div className="p-12 text-center bg-surface rounded-2xl border border-line">
-              <p className="text-mute">Hãy chọn một từ vựng bên trái để bắt đầu luyện nói.</p>
+            <div className="p-12 text-center bg-surface rounded-2xl border border-line space-y-4">
+              <p className="text-mute text-sm">
+                {cards.length === 0
+                  ? "Chưa có từ vựng nào trong danh sách. Hãy thêm bộ từ vào 'Bộ từ của tôi' trong Thư viện để bắt đầu luyện nói!"
+                  : "Hãy chọn một từ vựng bên trái để bắt đầu luyện nói."}
+              </p>
+              {cards.length === 0 && (
+                <Link
+                  href="/decks"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-primary-hover transition-colors"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  <span>Khám phá Thư viện bộ từ</span>
+                </Link>
+              )}
             </div>
           )}
         </div>
