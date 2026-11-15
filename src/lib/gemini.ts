@@ -5,9 +5,10 @@
 import { GeneratedCardItem, GrammarEvaluationResult } from "@/types";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 /**
- * Generate flashcards from Topic or Image using Gemini 2.5 Flash / Gemini models
+ * Generate flashcards from Topic or Image using Gemini 3.8 Flash / Gemini models
  */
 export async function generateFlashcardsWithAI(params: {
   topic?: string;
@@ -60,7 +61,7 @@ Yêu cầu định dạng: Trả về duy nhất một mảng JSON thuần túy 
 
     // Call Gemini REST API directly
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -139,7 +140,7 @@ Trả về DUY NHẤT một JSON format:
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -212,7 +213,7 @@ YOUR TASK:
 Respond ONLY with your spoken dialogue in English. No markdown, no prefixes, no explanations.`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

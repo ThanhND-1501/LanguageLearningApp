@@ -320,6 +320,25 @@ export function syncSupabaseSessionToLocalUser(supabaseUser: {
 
   const meta = supabaseUser.user_metadata || {};
 
+  // Extract enrolled deck ids from cloud metadata
+  let cloudEnrolledIds: string[] = Array.isArray(meta.enrolled_deck_ids) ? meta.enrolled_deck_ids : [];
+
+  // Robust Fallback: If cloud enrolled deck ids are empty, recover from study activities
+  if (cloudEnrolledIds.length === 0 && Array.isArray(meta.study_activities)) {
+    const recoveredIds = new Set<string>();
+    for (const act of meta.study_activities) {
+      if (act?.metadata?.deckId) {
+        recoveredIds.add(act.metadata.deckId);
+      }
+    }
+    if (recoveredIds.size > 0) {
+      cloudEnrolledIds = Array.from(recoveredIds);
+    }
+  }
+
+  const localEnrolled = existingIndex !== -1 ? (accounts[existingIndex].profile.enrolledDeckIds || []) : [];
+  const mergedEnrolledIds = Array.from(new Set([...localEnrolled, ...cloudEnrolledIds]));
+
   if (existingIndex !== -1) {
     profile = {
       ...accounts[existingIndex].profile,
@@ -328,10 +347,7 @@ export function syncSupabaseSessionToLocalUser(supabaseUser: {
       name: accounts[existingIndex].profile.name || name,
       targetLevel: (meta.target_level as TargetProficiencyLevel) || accounts[existingIndex].profile.targetLevel || "IELTS 7.5+",
       dailyGoalCards: meta.daily_goal_cards || accounts[existingIndex].profile.dailyGoalCards || 15,
-      enrolledDeckIds: Array.from(new Set([
-        ...(accounts[existingIndex].profile.enrolledDeckIds || []),
-        ...(Array.isArray(meta.enrolled_deck_ids) ? meta.enrolled_deck_ids : []),
-      ])),
+      enrolledDeckIds: mergedEnrolledIds,
     };
     accounts[existingIndex].profile = profile;
     saveStoredAccounts(accounts);
@@ -346,7 +362,7 @@ export function syncSupabaseSessionToLocalUser(supabaseUser: {
       lastActiveDate: new Date().toISOString().split("T")[0],
       createdAt: new Date().toISOString(),
       isCloudSynced: true,
-      enrolledDeckIds: Array.isArray(meta.enrolled_deck_ids) ? meta.enrolled_deck_ids : [],
+      enrolledDeckIds: mergedEnrolledIds,
     };
     accounts.push({
       id: profile.id,
@@ -355,6 +371,30 @@ export function syncSupabaseSessionToLocalUser(supabaseUser: {
       profile,
     });
     saveStoredAccounts(accounts);
+  }
+
+  // Bidirectional Cloud Synchronization:
+  // If merged list has items missing from cloud metadata, push back to Supabase
+  if (isSupabaseConfigured() && mergedEnrolledIds.length > 0) {
+    const cloudNeedsUpdate =
+      !Array.isArray(meta.enrolled_deck_ids) ||
+      mergedEnrolledIds.length !== meta.enrolled_deck_ids.length ||
+      mergedEnrolledIds.some((id) => !meta.enrolled_deck_ids.includes(id));
+
+    if (cloudNeedsUpdate) {
+      const sb = getSupabase();
+      if (sb) {
+        sb.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            sb.auth.updateUser({
+              data: {
+                enrolled_deck_ids: mergedEnrolledIds,
+              },
+            }).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+    }
   }
 
   // Restore cloud activities if local storage is empty
@@ -424,6 +464,7 @@ export async function updateUserProfile(updates: Partial<UserProfile>): Promise<
               name: updated.name,
               target_level: updated.targetLevel,
               daily_goal_cards: updated.dailyGoalCards,
+              enrolled_deck_ids: updated.enrolledDeckIds,
             },
           }).catch(() => {});
         }

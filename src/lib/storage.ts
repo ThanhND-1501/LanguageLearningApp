@@ -341,9 +341,13 @@ export function enrollInDeck(deckId: string, userId?: string): { success: boolea
     if (sb) {
       sb.auth.getUser().then(({ data: { user } }) => {
         if (user) {
+          const currentMetaEnrolled = Array.isArray(user.user_metadata?.enrolled_deck_ids)
+            ? user.user_metadata.enrolled_deck_ids
+            : [];
+          const updatedEnrolled = Array.from(new Set([...currentMetaEnrolled, ...(active?.enrolledDeckIds || []), deckId]));
           sb.auth.updateUser({
             data: {
-              enrolled_deck_ids: active?.enrolledDeckIds || [deckId],
+              enrolled_deck_ids: updatedEnrolled,
             },
           }).catch(() => {});
         }
@@ -381,6 +385,25 @@ export function unenrollDeck(deckId: string, userId?: string): void {
       }
     } catch {
       // Ignore
+    }
+  }
+
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase();
+    if (sb) {
+      sb.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          const currentMetaEnrolled: string[] = Array.isArray(user.user_metadata?.enrolled_deck_ids)
+            ? user.user_metadata.enrolled_deck_ids
+            : [];
+          const updatedEnrolled = currentMetaEnrolled.filter((id) => id !== deckId);
+          sb.auth.updateUser({
+            data: {
+              enrolled_deck_ids: updatedEnrolled,
+            },
+          }).catch(() => {});
+        }
+      }).catch(() => {});
     }
   }
 }

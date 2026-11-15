@@ -12,8 +12,8 @@ import {
   isDeckEnrolled,
   enrollInDeck,
 } from "@/lib/storage";
-import { getActiveUser, recordStudyActivity } from "@/lib/auth";
-import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
+import { getActiveUser, recordStudyActivity, syncSupabaseSessionToLocalUser } from "@/lib/auth";
+import { isSupabaseConfigured, getSupabase, getSessionUser } from "@/lib/supabase";
 import { mapDbToDeck } from "@/lib/sync";
 import {
   CEFR_LEVELS,
@@ -92,6 +92,18 @@ export default function DecksPage() {
     if (user && params.get("create") === "1") setShowCreate(true);
 
     if (isSupabaseConfigured()) {
+      getSessionUser().then((sbUser) => {
+        if (sbUser && sbUser.email) {
+          const synced = syncSupabaseSessionToLocalUser(sbUser);
+          setCurrentUser(synced);
+          const syncedPersonal = getLocalDecks(synced.id);
+          setPersonalDecks(syncedPersonal);
+          if (!q && syncedPersonal.length > 0) {
+            setTab("mine");
+          }
+        }
+      });
+
       getSupabase()
         ?.from("decks")
         .select("*")
