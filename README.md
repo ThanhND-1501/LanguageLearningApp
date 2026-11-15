@@ -7,13 +7,13 @@
 ## 1. Tổng Quan Kiến Trúc Kỹ Thuật
 
 Dự án xây dựng vòng lặp học tập khép kín 4 giai đoạn:
-1. **Khởi tạo học liệu (Create):** Tạo bộ thẻ thủ công hoặc dùng Google Gemini Multimodal Vision (Photo-to-Flashcard) trích xuất từ vựng từ ảnh chụp sách giáo khoa/tài liệu và mở rộng theo chủ đề (Topic-to-Flashcard).
+1. **Khởi tạo học liệu (Create):** Tạo bộ thẻ thủ công hoặc dùng Trí tuệ nhân tạo AI Đa phương tiện (Photo-to-Flashcard) trích xuất từ vựng từ ảnh chụp sách giáo khoa/tài liệu và mở rộng theo chủ đề (Topic-to-Flashcard).
 2. **Ghi nhớ ngắt quãng (Memorize):** Tích hợp thuật toán **Modified SuperMemo SM-2 & FSRS** tự động tính toán hệ số dễ nhớ ($EF$), số lần lặp ($n$) và khoảng thời gian ôn tập tiếp theo ($I$). 3 chế độ học tập cốt lõi:
    - **Flashcard:** Lật thẻ 3D, phát âm bản xứ, đánh giá 4 mức nhớ (`Again`, `Hard`, `Good`, `Easy`).
    - **Write:** Chế độ tự luận gõ lại từ vựng theo nghĩa ngữ cảnh.
    - **Dictation:** Nghe giọng đọc mẫu và chép chính tả toàn bộ câu ví dụ.
 3. **Thực hành ngữ cảnh & Ngữ pháp (Contextual & Grammar):** Kiểm tra câu đặt của người học với từ vựng mục tiêu, tự động bắt lỗi ngữ pháp và gợi ý câu viết lại tự nhiên chuẩn bản xứ.
-4. **Phản xạ nói & Chấm điểm phát âm (Speak & PronScore):** Thu âm trực tiếp qua `MediaRecorder API` và phân tích theo 4 chỉ số chuẩn của Azure AI Speech:
+4. **Phản xạ nói & Chấm điểm phát âm (Speak & PronScore):** Thu âm trực tiếp qua `MediaRecorder API` và phân tích theo 4 chỉ số chuẩn quốc tế PronScore™:
    - **AccuracyScore:** Độ chính xác âm vị từng từ (tô màu Xanh $\ge 80$, Vàng $60-79$, Đỏ $< 60$).
    - **FluencyScore:** Độ trôi chảy và ngắt nghỉ tự nhiên.
    - **CompletenessScore:** Tỷ lệ từ phát âm so với văn bản gốc.
@@ -63,10 +63,10 @@ LanguageLearningApp/
     │   ├── speaking/page.tsx                       # Studio luyện phản xạ nói & Chấm điểm PronScore
     │   ├── conversation/page.tsx                   # Hội thoại nhập vai AI Native Speaker Roleplay
     │   └── api/
-    │       ├── ai/generate-cards/route.ts          # API trích xuất thẻ từ ảnh / chủ đề (Gemini)
+    │       ├── ai/generate-cards/route.ts          # API trích xuất thẻ từ ảnh / chủ đề (AI Engine)
     │       ├── ai/check-grammar/route.ts           # API chấm ngữ pháp câu trả lời
     │       ├── dictionary/lookup/route.ts          # API tra cứu từ điển Cambridge (Anh - Việt & Anh - Anh)
-    │       └── speech/assess/route.ts              # API chấm phát âm PronScore (Azure Speech)
+    │       └── speech/assess/route.ts              # API chấm phát âm PronScore (AI Speech)
     │
     ├── components/
     │   ├── layout/
@@ -92,8 +92,8 @@ LanguageLearningApp/
     │   ├── srs.ts                                  # Thuật toán Spaced Repetition (Modified SM-2 / FSRS)
     │   ├── cambridge.ts                            # Động cơ cào và phân tích từ điển Cambridge
     │   ├── audio.ts                                # Web Speech TTS và MediaRecorder
-    │   ├── gemini.ts                               # Client Google Gemini 2.5 Flash
-    │   ├── azure-speech.ts                         # Azure AI Speech Assessment & Heuristic fallback
+    │   ├── gemini.ts                               # Client AI Language & Vision Pipeline
+    │   ├── azure-speech.ts                         # AI Speech Assessment & Heuristic fallback
     │   ├── storage.ts                              # Adapter Local-First IndexedDB / LocalStorage
     │   ├── supabase.ts                             # Supabase Client & Authentication (Email / OAuth)
     │   ├── sync.ts                                 # Đồng bộ hai chiều LocalStorage <-> Supabase Cloud
@@ -128,8 +128,8 @@ Sao chép file `.env.example` thành `.env.local`:
 cp .env.example .env.local
 ```
 Điền các API Key theo nhu cầu:
-1. **Google Gemini API Key:** Lấy miễn phí tại [Google AI Studio](https://aistudio.google.com/app/apikey) để kích hoạt tính năng tạo thẻ từ ảnh chụp (Photo-to-Flashcard), sửa lỗi ngữ pháp và hội thoại Roleplay.
-2. **Azure AI Speech Key & Region:** Đăng ký gói Free Tier (F0) tại [Azure Portal](https://portal.azure.com) (miễn phí 5 giờ âm thanh/tháng) để kích hoạt chấm điểm phát âm `PronScore`.
+1. **AI API Key (GEMINI_API_KEY):** Khởi tạo API key để kích hoạt tính năng tạo thẻ từ ảnh chụp (Photo-to-Flashcard), sửa lỗi ngữ pháp và hội thoại Roleplay.
+2. **Cloud Speech Key & Region:** Khởi tạo API key để kích hoạt chấm điểm phát âm `PronScore`.
 *(Lưu ý: Nếu chưa cấu hình API Key, ứng dụng vẫn tự động kích hoạt Heuristic Simulation Fallback và Web Speech API để lập trình viên có thể test toàn bộ tính năng và giao diện mà không bị lỗi).*
 
 ### Bước 4: Khởi chạy môi trường phát triển & Chạy Tests

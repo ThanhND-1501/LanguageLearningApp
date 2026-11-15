@@ -71,7 +71,7 @@ export function PronScoreDisplay({ scores, audioUrl }: PronScoreDisplayProps) {
               Xác thực AI chấm điểm:
             </span>
             <span className="font-semibold text-good bg-good-soft px-2 py-0.5 rounded-md">
-              {scores.provider || "Google Gemini 2.5 Flash Audio"}
+              {scores.provider || "AI Speech Engine"}
             </span>
           </div>
 

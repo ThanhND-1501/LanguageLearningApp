@@ -5,6 +5,7 @@ import { RoleplayScenario, ConversationMessage, UserProfile } from "@/types";
 import { getActiveUser } from "@/lib/auth";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { playNativePronunciation } from "@/lib/audio";
+import { CreateScenarioModal } from "@/components/conversation/CreateScenarioModal";
 import {
   MessageSquare,
   Sparkles,
@@ -14,6 +15,7 @@ import {
   User,
   Bot,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 
 const SCENARIOS: RoleplayScenario[] = [
@@ -39,6 +41,9 @@ export default function ConversationPage() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
+  const [customScenarios, setCustomScenarios] = useState<RoleplayScenario[]>([]);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
   const [selectedScenario, setSelectedScenario] = useState<RoleplayScenario>(SCENARIOS[0]);
   const [messages, setMessages] = useState<ConversationMessage[]>([
     {
@@ -56,6 +61,19 @@ export default function ConversationPage() {
     const user = getActiveUser();
     setCurrentUser(user);
     setIsAuthChecking(false);
+
+    try {
+      const storageKey = user ? `lingopulse_custom_scenarios_${user.id}` : "lingopulse_custom_scenarios_guest";
+      const raw = localStorage.getItem(storageKey) || localStorage.getItem("lingopulse_custom_scenarios");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCustomScenarios(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load custom scenarios from storage:", e);
+    }
   }, []);
 
   const handleSelectScenario = (sc: RoleplayScenario) => {
@@ -70,6 +88,35 @@ export default function ConversationPage() {
     ]);
     setUsedWords([]);
   };
+
+  const handleScenarioCreated = (newScenario: RoleplayScenario) => {
+    const updated = [newScenario, ...customScenarios.filter((s) => s.id !== newScenario.id)];
+    setCustomScenarios(updated);
+    try {
+      const storageKey = currentUser ? `lingopulse_custom_scenarios_${currentUser.id}` : "lingopulse_custom_scenarios_guest";
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Failed to save custom scenarios:", e);
+    }
+    handleSelectScenario(newScenario);
+  };
+
+  const handleDeleteCustomScenario = (e: React.MouseEvent, scenarioId: string) => {
+    e.stopPropagation();
+    const updated = customScenarios.filter((s) => s.id !== scenarioId);
+    setCustomScenarios(updated);
+    try {
+      const storageKey = currentUser ? `lingopulse_custom_scenarios_${currentUser.id}` : "lingopulse_custom_scenarios_guest";
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Failed to update custom scenarios:", e);
+    }
+    if (selectedScenario.id === scenarioId) {
+      handleSelectScenario(SCENARIOS[0]);
+    }
+  };
+
+  const allScenarios = [...customScenarios, ...SCENARIOS];
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +143,7 @@ export default function ConversationPage() {
     setIsTyping(true);
 
     try {
-      // 1. Call real AI Roleplay Conversation API (Gemini 2.5 Flash with Groq failover)
+      // 1. Call real AI Roleplay Conversation API (AI Engine with failover)
       const convoRes = await fetch("/api/ai/conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -164,27 +211,62 @@ export default function ConversationPage() {
         {/* Left Column: Scenarios & Word Goals */}
         <div className="lg:col-span-4 space-y-4">
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-mute">
-              Chọn kịch bản mô phỏng:
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-mute uppercase tracking-wider">
+                Chọn kịch bản mô phỏng:
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary-hover transition-colors px-2.5 py-1 rounded-lg bg-primary-soft hover:bg-primary-soft/80"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>+ Tự tạo với AI</span>
+              </button>
+            </div>
 
-            {SCENARIOS.map((sc) => {
-              const isSelected = selectedScenario.id === sc.id;
-              return (
-                <div
-                  key={sc.id}
-                  onClick={() => handleSelectScenario(sc)}
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary-soft"
-                      : "border-line hover:bg-subtle"
-                  }`}
-                >
-                  <h4 className="text-sm font-bold text-ink">{sc.title}</h4>
-                  <p className="text-xs text-mute mt-1 line-clamp-2">{sc.description}</p>
-                </div>
-              );
-            })}
+            <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+              {allScenarios.map((sc) => {
+                const isSelected = selectedScenario.id === sc.id;
+                return (
+                  <div
+                    key={sc.id}
+                    onClick={() => handleSelectScenario(sc)}
+                    className={`group relative p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary-soft shadow-sm"
+                        : "border-line hover:bg-subtle"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          {sc.isCustom && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/15 text-primary-ink shrink-0">
+                              <Sparkles className="h-2.5 w-2.5" />
+                              Tùy chỉnh
+                            </span>
+                          )}
+                          <h4 className="text-sm font-bold text-ink truncate">{sc.title}</h4>
+                        </div>
+                        <p className="text-xs text-mute mt-1 line-clamp-2">{sc.description}</p>
+                      </div>
+
+                      {sc.isCustom && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteCustomScenario(e, sc.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 text-mute hover:text-poor hover:bg-poor-soft rounded-lg transition-all shrink-0"
+                          title="Xóa kịch bản tùy chỉnh này"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Goal Tracker: Target words */}
@@ -328,6 +410,13 @@ export default function ConversationPage() {
           </form>
         </div>
       </div>
+
+      {/* Custom AI Scenario Creator Modal */}
+      <CreateScenarioModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onScenarioCreated={handleScenarioCreated}
+      />
     </div>
   );
 }

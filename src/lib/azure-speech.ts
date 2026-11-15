@@ -1,9 +1,9 @@
 // ==============================================================================
 // Pronunciation Assessment & Speech Analysis Multi-Provider Engine
-// Tier 1: OpenPronounce (Local Wav2Vec2 + DTW Phoneme Engine - 100% Free & Local)
-// Tier 2: Google Gemini 2.5 Flash Multimodal Audio (Zero-cost Cloud fallback)
-// Tier 3: Groq Whisper Cloud (Whisper-large-v3 ultra-fast STT + phonetic evaluation)
-// Tier 4: Azure AI Speech Services (Standard REST API if configured)
+// Tier 1: Local AI Phoneme Engine (100% Free & Local)
+// Tier 2: AI Multimodal Audio (Cloud AI fallback)
+// Tier 3: AI Speech Recognition Cloud
+// Tier 4: Cloud Speech Services
 // Tier 5: Local Heuristic Simulator Fallback (100% offline developer testing)
 // ==============================================================================
 
@@ -44,7 +44,7 @@ export function createSilentPronResult(
 }
 
 /**
- * Assesses pronunciation using Google Gemini Multimodal Audio
+ * Assesses pronunciation using AI Multimodal Audio
  * Listens directly to the user's recorded audio and evaluates phonetics, fluency, completeness & prosody
  */
 async function assessWithGeminiAudio(
@@ -137,7 +137,7 @@ Return STRICT JSON only without any markdown formatting or code blocks:
     );
 
     if (!response.ok) {
-      console.warn("Gemini Audio Assessment HTTP error status:", response.status);
+      console.warn("AI Audio Assessment HTTP error status:", response.status);
       return null;
     }
 
@@ -153,7 +153,7 @@ Return STRICT JSON only without any markdown formatting or code blocks:
         fluencyScore: Math.min(100, Math.max(0, Math.round(parsed.fluencyScore || parsed.pronScore))),
         completenessScore: Math.min(100, Math.max(0, Math.round(parsed.completenessScore || 100))),
         prosodyScore: Math.min(100, Math.max(0, Math.round(parsed.prosodyScore || parsed.pronScore))),
-        provider: "Google Gemini 2.5 Flash Audio (Multimodal)",
+        provider: "AI Speech Assessment (Multimodal)",
         recognizedTranscript: parsed.recognizedTranscript || "",
         latencyMs: Date.now() - startTime,
         audioSizeBytes: audioBlob.size,
@@ -166,13 +166,13 @@ Return STRICT JSON only without any markdown formatting or code blocks:
       };
     }
   } catch (err) {
-    console.warn("Gemini Audio Assessment error, trying fallback provider:", err);
+    console.warn("AI Audio Assessment error, trying fallback provider:", err);
   }
   return null;
 }
 
 /**
- * Assesses pronunciation using Groq Whisper-large-v3 transcription
+ * Assesses pronunciation using Cloud AI Speech recognition
  */
 async function assessWithGroqWhisper(
   audioBlob: Blob,
@@ -196,27 +196,27 @@ async function assessWithGroqWhisper(
     });
 
     if (!response.ok) {
-      console.warn("Groq Whisper API HTTP error:", response.status);
+      console.warn("AI Speech Recognition HTTP error:", response.status);
       return null;
     }
 
     const data = await response.json();
     const transcribedText = (data.text || "").trim();
-    // If Whisper detects no speech (empty transcription), it was silence
+    // If no speech detected (empty transcription), it was silence
     if (!transcribedText) {
-      return createSilentPronResult(referenceText, "Groq Whisper-large-v3", audioBlob.size, Date.now() - startTime);
+      return createSilentPronResult(referenceText, "AI Speech Recognition", audioBlob.size, Date.now() - startTime);
     }
 
     const sim = simulatePronAssessment(referenceText, transcribedText);
     return {
       ...sim,
-      provider: "Groq Whisper-large-v3",
+      provider: "AI Speech Recognition",
       recognizedTranscript: transcribedText,
       latencyMs: Date.now() - startTime,
       audioSizeBytes: audioBlob.size,
     };
   } catch (err) {
-    console.warn("Groq Whisper Speech Assessment failed:", err);
+    console.warn("AI Speech Recognition Assessment failed:", err);
   }
   return null;
 }
@@ -433,7 +433,7 @@ async function assessWithOpenPronounce(
         fluencyScore,
         completenessScore,
         prosodyScore,
-        provider: "OpenPronounce (Local Wav2Vec2 + DTW)",
+        provider: "Local AI Audio Engine",
         recognizedTranscript: data.transcribe || differences.transcribe || "",
         latencyMs: Date.now() - startTime,
         audioSizeBytes: audioBlob.size,
@@ -441,17 +441,17 @@ async function assessWithOpenPronounce(
       };
     }
   } catch (err) {
-    console.warn("OpenPronounce local service unavailable, trying next provider:", err);
+    console.warn("Local AI service unavailable, trying next provider:", err);
   }
   return null;
 }
 
 /**
  * Assesses pronunciation against reference text with multi-provider failover:
- * 1. OpenPronounce (Local Wav2Vec2 + DTW Phoneme Engine - 100% Free & Local)
- * 2. Google Gemini 2.5 Flash Audio (Multimodal Native)
- * 3. Groq Whisper (Ultra-fast transcription)
- * 4. Azure Speech (if valid key)
+ * 1. Local AI Audio Engine (100% Free & Local)
+ * 2. AI Multimodal Audio (Cloud AI fallback)
+ * 3. AI Speech Recognition (Cloud STT)
+ * 4. Cloud Speech Services (if valid key)
  * 5. Local Heuristic Simulator
  */
 export async function assessPronunciation(
@@ -476,7 +476,7 @@ export async function assessPronunciation(
     return openPronounceScore;
   }
 
-  // 2. Try Google Gemini Audio (Multimodal)
+  // 2. Try Cloud AI Audio (Multimodal)
   const geminiKey = process.env.GEMINI_API_KEY;
   const isGeminiValid =
     geminiKey &&
@@ -556,7 +556,7 @@ export async function assessPronunciation(
             fluencyScore: Math.round(nBest.FluencyScore || 86),
             completenessScore: Math.round(nBest.CompletenessScore || 100),
             prosodyScore: Math.round(nBest.ProsodyScore || 83),
-            provider: "Azure AI Speech Services",
+            provider: "Cloud Speech Services",
             recognizedTranscript: data.DisplayText || nBest.Display || referenceText,
             latencyMs: Date.now() - startTime,
             audioSizeBytes: audioBlob.size,
@@ -565,7 +565,7 @@ export async function assessPronunciation(
         }
       }
     } catch (err) {
-      console.warn("Azure Speech API request failed:", err);
+      console.warn("Cloud Speech API request failed:", err);
     }
   }
 
@@ -660,13 +660,13 @@ export async function checkOpenPronounceHealth(): Promise<{ online: boolean; mes
     });
     clearTimeout(timer);
     if (res.ok) {
-      return { online: true, message: "OpenPronounce engine is online & ready (Tier 1 Default)", url: serviceUrl };
+      return { online: true, message: "Local AI engine is online & ready (Tier 1 Default)", url: serviceUrl };
     }
-    return { online: false, message: `OpenPronounce returned status ${res.status}`, url: serviceUrl };
+    return { online: false, message: `Local AI returned status ${res.status}`, url: serviceUrl };
   } catch (err: any) {
     return {
       online: false,
-      message: `OpenPronounce offline (${err.message || "ECONNREFUSED"}). Run 'npm run openpronounce:start'`,
+      message: `Local AI offline (${err.message || "ECONNREFUSED"}). Run 'npm run openpronounce:start'`,
       url: serviceUrl,
     };
   }

@@ -156,5 +156,16 @@ describe("Global Decks & Account Isolation (storage.ts)", () => {
     assert.strictEqual(isDeckEnrolled("deck-ielts-mastery", userWithActivities.id), true);
     assert.strictEqual(isDeckEnrolled("deck-silicon-valley", userWithActivities.id), true);
   });
+
+  it("should isolate speaking cards to strictly enrolled decks (8 cards for 2 enrolled decks)", () => {
+    const demo = loginDemoUser();
+    // Demo user is pre-enrolled in IELTS (5 cards) and Silicon Valley (3 cards)
+    const userCards = getLocalCards(demo.id);
+    assert.strictEqual(userCards.length, 8);
+
+    // Calling getLocalCards without arguments when demo is active user should also return 8 cards
+    const activeCards = getLocalCards();
+    assert.strictEqual(activeCards.length, 8);
+  });
 });
 
