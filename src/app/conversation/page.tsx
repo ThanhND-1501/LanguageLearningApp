@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { RoleplayScenario, ConversationMessage, UserProfile } from "@/types";
 import { getActiveUser } from "@/lib/auth";
 import { AuthGuard } from "@/components/auth/AuthGuard";
@@ -56,6 +56,15 @@ export default function ConversationPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [usedWords, setUsedWords] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  };
+
+  useEffect(() => {
+    scrollToBottom("smooth");
+  }, [messages, isTyping]);
 
   useEffect(() => {
     const user = getActiveUser();
@@ -386,6 +395,7 @@ export default function ConversationPage() {
                 <span>AI đang suy nghĩ phản hồi...</span>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Input Footer */}
