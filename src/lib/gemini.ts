@@ -238,7 +238,7 @@ Respond ONLY with your spoken dialogue in English. No markdown, no prefixes, no 
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 250,
+              maxOutputTokens: 2000,
             },
           }),
         }
@@ -246,7 +246,9 @@ Respond ONLY with your spoken dialogue in English. No markdown, no prefixes, no 
 
       if (response.ok) {
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        const textPart = parts.find((p: any) => typeof p.text === "string" && !p.thought) || parts[0];
+        const text = textPart?.text?.trim();
         if (text) {
           return text.replace(/^["']|["']$/g, "").trim();
         }
@@ -296,9 +298,19 @@ Respond ONLY with your spoken dialogue in English. No markdown, no prefixes, no 
     }
   }
 
-  // 3. Fallback template
-  const nextTarget = remainingWords[0] || targetWords[0];
-  return `That makes a lot of sense. Speaking of our strategy, how do you think we can best incorporate concepts like '${nextTarget}' into our upcoming objectives?`;
+  // 3. Context-aware fallback template
+  const nextTarget = remainingWords[0] || targetWords[0] || "this topic";
+  const normTitle = scenarioTitle.toLowerCase();
+  if (normTitle.includes("khách sạn") || normTitle.includes("hotel") || normTitle.includes("room") || normTitle.includes("phòng")) {
+    return `Certainly! Regarding your stay, could you let me know if you would like to ask about our '${nextTarget}' or room preferences?`;
+  }
+  if (normTitle.includes("visa") || normTitle.includes("lãnh sự") || normTitle.includes("embassy")) {
+    return `I understand. Moving to the next question, could you clarify how '${nextTarget}' relates to your travel plans?`;
+  }
+  if (normTitle.includes("phỏng vấn") || normTitle.includes("interview") || normTitle.includes("kỹ sư")) {
+    return `Thank you for sharing that. In your past experience, how did you demonstrate '${nextTarget}' when solving difficult challenges?`;
+  }
+  return `Thank you for sharing that perspective. Regarding our discussion, how would you address '${nextTarget}' in this situation?`;
 }
 
 /**
@@ -358,7 +370,7 @@ Trả về DUY NHẤT một đối tượng JSON hợp lệ (không chứa markd
             generationConfig: {
               responseMimeType: "application/json",
               temperature: 0.4,
-              maxOutputTokens: 1200,
+              maxOutputTokens: 3000,
             },
           }),
         }
@@ -366,7 +378,9 @@ Trả về DUY NHẤT một đối tượng JSON hợp lệ (không chứa markd
 
       if (response.ok) {
         const data = await response.json();
-        let text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        const textPart = parts.find((p: any) => typeof p.text === "string" && !p.thought) || parts[0];
+        let text = textPart?.text?.trim();
         if (text) {
           text = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
           const parsed = JSON.parse(text);
