@@ -7,8 +7,15 @@
 import { GeneratedCardItem, DocumentExtractResult } from "@/types";
 import mammoth from "mammoth";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+function getCleanApiKey(): string {
+  const key = process.env.GEMINI_API_KEY || "";
+  return key.trim().replace(/^["']|["']$/g, "");
+}
+
+function getCleanModel(): string {
+  const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  return model.trim().replace(/^["']|["']$/g, "");
+}
 
 export interface ExtractDocumentOptions {
   fileName: string;
@@ -244,7 +251,10 @@ export async function extractVocabularyFromDocument(
   );
 
   // 2. Multimodal or Textual AI Calling
-  if (GEMINI_API_KEY) {
+  const apiKey = getCleanApiKey();
+  const model = getCleanModel();
+
+  if (apiKey && !apiKey.includes("your_gemini_api_key_here") && apiKey.length > 10) {
     try {
       const contents: any[] = [];
       const parts: any[] = [];
@@ -305,7 +315,7 @@ Yêu cầu định dạng: Trả về duy nhất một mảng JSON thuần túy 
       contents.push({ parts });
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

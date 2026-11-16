@@ -8,6 +8,7 @@
 // ==============================================================================
 
 import { PronScoreResult, WordScore } from "@/types";
+import { getCleanApiKey, getCleanModel } from "./gemini";
 
 /**
  * Returns a 0-score evaluation when no speech / silence is detected
@@ -108,7 +109,7 @@ Return STRICT JSON only without any markdown formatting or code blocks:
   ]
 }`;
 
-    const geminiModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+    const geminiModel = getCleanModel();
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`,
       {
@@ -477,7 +478,7 @@ export async function assessPronunciation(
   }
 
   // 2. Try Cloud AI Audio (Multimodal)
-  const geminiKey = process.env.GEMINI_API_KEY;
+  const geminiKey = getCleanApiKey();
   const isGeminiValid =
     geminiKey &&
     !geminiKey.includes("your_gemini_api_key_here") &&

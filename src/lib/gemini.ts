@@ -4,8 +4,17 @@
 
 import { GeneratedCardItem, GrammarEvaluationResult, RoleplayScenario } from "@/types";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+export function getCleanApiKey(): string {
+  const key = process.env.GEMINI_API_KEY || "";
+  return key.trim().replace(/^["']|["']$/g, "");
+}
+
+export function getCleanModel(): string {
+  const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  return model.trim().replace(/^["']|["']$/g, "");
+}
+
+export const GEMINI_MODEL = getCleanModel();
 
 /**
  * Generate flashcards from Topic or Image using AI models
@@ -18,9 +27,11 @@ export async function generateFlashcardsWithAI(params: {
   imageMimeType?: string;
 }): Promise<GeneratedCardItem[]> {
   const { topic = "IELTS Academic Vocabulary", level = "B2-C1", count = 5, imageBase64, imageMimeType } = params;
+  const apiKey = getCleanApiKey();
+  const model = getCleanModel();
 
-  if (!GEMINI_API_KEY) {
-    console.warn("GEMINI_API_KEY not configured, returning curated AI template cards.");
+  if (!apiKey || apiKey.includes("your_gemini_api_key_here") || apiKey.length < 10) {
+    console.warn("AI API key not configured, returning curated AI template cards.");
     return getFallbackGeneratedCards(topic);
   }
 
@@ -61,7 +72,7 @@ Yêu cầu định dạng: Trả về duy nhất một mảng JSON thuần túy 
 
     // Call Cloud AI REST API directly
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,7 +110,10 @@ export async function evaluateSpokenSentence(
   userSentence: string,
   promptQuestion: string
 ): Promise<GrammarEvaluationResult> {
-  if (!GEMINI_API_KEY) {
+  const apiKey = getCleanApiKey();
+  const model = getCleanModel();
+
+  if (!apiKey || apiKey.includes("your_gemini_api_key_here") || apiKey.length < 10) {
     // Heuristic analysis when API key is not present
     const lower = userSentence.toLowerCase();
     const missing = targetWords.filter((w) => !lower.includes(w.toLowerCase()));
@@ -140,7 +154,7 @@ Trả về DUY NHẤT một JSON format:
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -190,8 +204,11 @@ export async function generateRoleplayReply(params: {
   const { scenarioTitle, aiPersona, targetWords, usedWords, history, userMessage } = params;
   const remainingWords = targetWords.filter((w) => !usedWords.includes(w));
 
+  const apiKey = getCleanApiKey();
+  const model = getCleanModel();
+
   // 1. Try Primary AI Provider
-  if (GEMINI_API_KEY && !GEMINI_API_KEY.includes("your_gemini_api_key_here") && GEMINI_API_KEY.length > 10) {
+  if (apiKey && !apiKey.includes("your_gemini_api_key_here") && apiKey.length > 10) {
     try {
       const prompt = `You are roleplaying as "${aiPersona}" in an interactive English learning scenario: "${scenarioTitle}".
 The user is an English language learner practicing spoken communication.
@@ -213,7 +230,7 @@ YOUR TASK:
 Respond ONLY with your spoken dialogue in English. No markdown, no prefixes, no explanations.`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -300,8 +317,8 @@ export async function generateCustomRoleplayScenario(params: {
     .map((w) => w.trim())
     .filter((w) => w.length > 0);
 
-  const apiKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || GEMINI_MODEL;
+  const apiKey = getCleanApiKey();
+  const model = getCleanModel();
 
   // 1. Try Primary Cloud AI API
   if (apiKey && !apiKey.includes("your_gemini_api_key_here") && apiKey.length > 10) {
