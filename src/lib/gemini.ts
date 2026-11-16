@@ -4,8 +4,17 @@
 
 import { GeneratedCardItem, GrammarEvaluationResult, RoleplayScenario } from "@/types";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+export function getCleanApiKey(): string {
+  const key = process.env.GEMINI_API_KEY || "";
+  return key.trim().replace(/^["']|["']$/g, "");
+}
+
+export function getCleanModel(): string {
+  const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  return model.trim().replace(/^["']|["']$/g, "");
+}
+
+export const GEMINI_MODEL = getCleanModel();
 
 /**
  * Generate flashcards from Topic or Image using AI models
@@ -18,9 +27,11 @@ export async function generateFlashcardsWithAI(params: {
   imageMimeType?: string;
 }): Promise<GeneratedCardItem[]> {
   const { topic = "IELTS Academic Vocabulary", level = "B2-C1", count = 5, imageBase64, imageMimeType } = params;
+  const apiKey = getCleanApiKey();
+  const model = getCleanModel();
 
-  if (!GEMINI_API_KEY) {
-    console.warn("GEMINI_API_KEY not configured, returning curated AI template cards.");
+  if (!apiKey || apiKey.includes("your_gemini_api_key_here") || apiKey.length < 10) {
+    console.warn("AI API key not configured, returning curated AI template cards.");
     return getFallbackGeneratedCards(topic);
   }
 
@@ -61,7 +72,7 @@ Yêu cầu định dạng: Trả về duy nhất một mảng JSON thuần túy 
 
     // Call Cloud AI REST API directly
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,7 +110,10 @@ export async function evaluateSpokenSentence(
   userSentence: string,
   promptQuestion: string
 ): Promise<GrammarEvaluationResult> {
-  if (!GEMINI_API_KEY) {
+  const apiKey = getCleanApiKey();
+  const model = getCleanModel();
+
+  if (!apiKey || apiKey.includes("your_gemini_api_key_here") || apiKey.length < 10) {
     // Heuristic analysis when API key is not present
     const lower = userSentence.toLowerCase();
     const missing = targetWords.filter((w) => !lower.includes(w.toLowerCase()));
@@ -140,7 +154,7 @@ Trả về DUY NHẤT một JSON format:
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -190,8 +204,11 @@ export async function generateRoleplayReply(params: {
   const { scenarioTitle, aiPersona, targetWords, usedWords, history, userMessage } = params;
   const remainingWords = targetWords.filter((w) => !usedWords.includes(w));
 
+  const apiKey = getCleanApiKey();
+  const model = getCleanModel();
+
   // 1. Try Primary AI Provider
-  if (GEMINI_API_KEY && !GEMINI_API_KEY.includes("your_gemini_api_key_here") && GEMINI_API_KEY.length > 10) {
+  if (apiKey && !apiKey.includes("your_gemini_api_key_here") && apiKey.length > 10) {
     try {
       const prompt = `You are roleplaying as "${aiPersona}" in an interactive English learning scenario: "${scenarioTitle}".
 The user is an English language learner practicing spoken communication.
@@ -213,7 +230,7 @@ YOUR TASK:
 Respond ONLY with your spoken dialogue in English. No markdown, no prefixes, no explanations.`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -300,8 +317,8 @@ export async function generateCustomRoleplayScenario(params: {
     .map((w) => w.trim())
     .filter((w) => w.length > 0);
 
-  const apiKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || GEMINI_MODEL;
+  const apiKey = getCleanApiKey();
+  const model = getCleanModel();
 
   // 1. Try Primary Cloud AI API
   if (apiKey && !apiKey.includes("your_gemini_api_key_here") && apiKey.length > 10) {
@@ -341,7 +358,7 @@ Trả về DUY NHẤT một đối tượng JSON hợp lệ (không chứa markd
             generationConfig: {
               responseMimeType: "application/json",
               temperature: 0.4,
-              maxOutputTokens: 600,
+              maxOutputTokens: 1200,
             },
           }),
         }
@@ -349,8 +366,9 @@ Trả về DUY NHẤT một đối tượng JSON hợp lệ (không chứa markd
 
       if (response.ok) {
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        let text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
         if (text) {
+          text = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
           const parsed = JSON.parse(text);
           if (parsed.title && parsed.aiPersona && parsed.initialMessage) {
             return {
@@ -367,6 +385,9 @@ Trả về DUY NHẤT một đối tượng JSON hợp lệ (không chứa markd
             };
           }
         }
+      } else {
+        const errText = await response.text();
+        console.warn(`Primary AI Custom Scenario API HTTP ${response.status}:`, errText);
       }
     } catch (err) {
       console.warn("Primary AI Custom Scenario Generation Error, trying fallback AI:", err);
@@ -440,21 +461,48 @@ Return ONLY valid JSON matching this schema:
 }
 
 function getFallbackCustomScenario(instruction: string, customWords?: string[]): RoleplayScenario {
-  const fallbackWords = customWords && customWords.length >= 2
-    ? customWords
-    : ["clarify", "perspective", "recommend", "objective"];
+  const norm = instruction.toLowerCase();
 
   const safeTitle = instruction.trim().length > 35
     ? instruction.trim().slice(0, 35) + "..."
     : instruction.trim() || "Tình huống giao tiếp thực tế";
 
+  // Context-aware defaults when offline or API key is unconfigured
+  let persona = "Native Conversation Partner";
+  let initialMsg = `Hello there! I'm glad we could connect today. Regarding "${safeTitle}", could you briefly describe what you hope to achieve first?`;
+  let fallbackWords = ["clarify", "perspective", "recommend", "objective"];
+
+  if (norm.includes("khách sạn") || norm.includes("hotel") || norm.includes("đặt phòng") || norm.includes("room") || norm.includes("resort") || norm.includes("phố cổ")) {
+    persona = "Hotel Front Desk Receptionist";
+    initialMsg = "Good day! Welcome to our hotel. How may I assist you with your room reservation and accommodation preferences today?";
+    fallbackWords = ["reservation", "availability", "accommodate", "amenities"];
+  } else if (norm.includes("visa") || norm.includes("lãnh sự") || norm.includes("đại sứ quán") || norm.includes("embassy") || norm.includes("consular")) {
+    persona = "Consular Visa Officer";
+    initialMsg = "Good morning. Please step forward and state the primary purpose and expected duration of your visit.";
+    fallbackWords = ["itinerary", "strong ties", "duration", "documentation"];
+  } else if (norm.includes("lương") || norm.includes("salary") || (norm.includes("offer") && norm.includes("làm việc"))) {
+    persona = "Senior Hiring Manager";
+    initialMsg = "Thank you for meeting with me today. We're very excited about your background, so let's discuss your compensation package and role expectations.";
+    fallbackWords = ["compensation", "counteroffer", "benchmark", "expectations"];
+  } else if (norm.includes("nhà hàng") || norm.includes("restaurant") || norm.includes("menu") || norm.includes("dinner")) {
+    persona = "Restaurant Server / Host";
+    initialMsg = "Good evening and welcome to our restaurant! Do you have a table reservation with us tonight, or may I seat you right away?";
+    fallbackWords = ["reservation", "specialty", "recommendation", "appetizer"];
+  } else if (norm.includes("sân bay") || norm.includes("airport") || norm.includes("flight") || norm.includes("chuyến bay") || norm.includes("vé máy bay")) {
+    persona = "Airline Customer Service Agent";
+    initialMsg = "Hello! Welcome to the airline customer service counter. How can I assist you with your flight details or luggage today?";
+    fallbackWords = ["boarding pass", "departure", "destination", "itinerary"];
+  }
+
+  const finalWords = customWords && customWords.length >= 2 ? customWords : fallbackWords;
+
   return {
     id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     title: safeTitle,
     description: `Kịch bản mô phỏng tương tác theo yêu cầu: "${instruction}". Hãy dùng các từ vựng mục tiêu trong quá trình trao đổi với AI.`,
-    aiPersona: "Native Conversation Partner",
-    initialMessage: `Hello there! I'm glad we could connect today to talk about this. To help me better understand your perspective, could you briefly describe what you hope to achieve first?`,
-    targetWords: fallbackWords,
+    aiPersona: persona,
+    initialMessage: initialMsg,
+    targetWords: finalWords,
     isCustom: true,
     createdAt: new Date().toISOString(),
   };
