@@ -56,10 +56,15 @@ export default function ConversationPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [usedWords, setUsedWords] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior,
+      });
+    }
   };
 
   useEffect(() => {
@@ -343,7 +348,7 @@ export default function ConversationPage() {
           </div>
 
           {/* Messages list */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.map((msg) => {
               const isMe = msg.role === "user";
               return (
@@ -395,7 +400,6 @@ export default function ConversationPage() {
                 <span>AI đang suy nghĩ phản hồi...</span>
               </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           {/* Input Footer */}
